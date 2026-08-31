@@ -343,6 +343,10 @@ tbody tr:last-child td{border-bottom:none;}
 <!-- Used only for Download PDF / Share (attach file) — loaded from cdnjs. If unavailable (offline / blocked), those two buttons will show an error but everything else in the app still works normally. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Firebase (compat build) — used only for optional cross-device Cloud Sync. If this fails to
+     load (offline / blocked), cloud sync is simply unavailable and everything else still works. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 
 <div class="topbar">
@@ -359,6 +363,7 @@ tbody tr:last-child td{border-bottom:none;}
     <button id="tabTx" onclick="switchMode('tx')">Transactions</button>
   </div>
   <div class="topbar-actions no-print">
+    <button class="icon-btn" id="cloudBtn" title="Cloud sync (PIN) — works on any device" onclick="openCloudModal()">☁</button>
     <button class="icon-btn" id="folderBtn" title="Connect a data folder" onclick="folderBtnClick()">📁</button>
     <button class="icon-btn" title="Settings" onclick="openSettings()">⚙</button>
   </div>
@@ -692,6 +697,24 @@ tbody tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<!-- ===================== CLOUD SYNC MODAL ===================== -->
+<div class="modal-backdrop no-print" id="cloudModalBackdrop">
+  <div class="modal">
+    <h3>Cloud Sync</h3>
+    <p class="modal-sub">Enter the same PIN on every device (phone included) to share this business's data between them. Pick something long and non-obvious — it's the only thing protecting this data.</p>
+    <div class="form-grid">
+      <div class="field span2"><label>PIN</label><input type="text" id="cloudPinInput" placeholder="e.g. a long custom phrase or code"></div>
+    </div>
+    <p class="hint" id="cloudStatus" style="margin:8px 2px 0;"></p>
+    <div class="modal-footer">
+      <button class="btn btn-danger-ghost" id="cloudDisconnectBtn" onclick="disconnectCloud()" style="display:none;">Disconnect</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="closeCloudModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="connectCloudFromModal()">Connect</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===================== STATE ===================== */
 let parts = [];
@@ -712,6 +735,109 @@ let selectedPartIds = new Set();
 let billingDocType = 'invoice'; // 'invoice' | 'proforma'
 let currentConvertSourceProformaId = null;
 let activeRecord = null; // the record currently shown in #invoiceSheet — source of truth for download/share/email
+
+/* ---- cloud sync (Firebase Firestore) — optional, works across any device ---- */
+const firebaseConfig = {
+  apiKey: "AIzaSyDUvdD1oTM5djpGtMNJMotGN3dnsVezCvM",
+  authDomain: "ld-print-3d.firebaseapp.com",
+  projectId: "ld-print-3d",
+  storageBucket: "ld-print-3d.firebasestorage.app",
+  messagingSenderId: "299783332525",
+  appId: "1:299783332525:web:9b334ab7539078b5dd5c24"
+};
+let cloudDb = null;
+let cloudPin = null;
+let cloudSaving = false;
+try{
+  if(window.firebase){
+    firebase.initializeApp(firebaseConfig);
+    cloudDb = firebase.firestore();
+  }
+}catch(e){ console.error('Firebase init failed', e); }
+
+function cloudDocRef(pin){ return cloudDb.collection('ld3d_business').doc(pin); }
+function updateCloudStatus(connected){
+  const btn = document.getElementById('cloudBtn');
+  if(!btn) return;
+  if(connected){ btn.classList.add('connected'); btn.title = 'Cloud sync connected — saving to PIN: ' + cloudPin; }
+  else { btn.classList.remove('connected'); btn.title = 'Cloud sync (PIN) — works on any device'; }
+}
+async function initCloudStatus(){
+  if(!cloudDb) return;
+  const savedPin = localStorage.getItem('ld3d-cloud-pin');
+  if(!savedPin) return;
+  try{
+    const doc = await cloudDocRef(savedPin).get();
+    if(doc.exists){
+      const data = doc.data();
+      if(data.parts) parts = data.parts;
+      if(data.invoices) invoices = data.invoices;
+      if(data.proformas) proformas = data.proformas;
+      if(data.cancelledDocs) cancelledDocs = data.cancelledDocs;
+      if(data.settings) settings = Object.assign(settings, data.settings);
+      renderAll();
+    }
+    cloudPin = savedPin;
+    updateCloudStatus(true);
+  }catch(e){ console.error('Cloud reconnect failed', e); }
+}
+async function writeCloud(){
+  if(!cloudDb || !cloudPin || cloudSaving) return;
+  cloudSaving = true;
+  try{
+    await cloudDocRef(cloudPin).set({
+      parts, invoices, proformas, cancelledDocs, settings,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(e){ console.error('Cloud write failed', e); }
+  cloudSaving = false;
+}
+function openCloudModal(){
+  if(!cloudDb){ alert('Cloud sync could not load (needs an internet connection). Everything else in the app still works normally.'); return; }
+  document.getElementById('cloudPinInput').value = cloudPin || '';
+  document.getElementById('cloudStatus').textContent = cloudPin ? `Connected — syncing with PIN "${cloudPin}".` : 'Not connected yet.';
+  document.getElementById('cloudDisconnectBtn').style.display = cloudPin ? 'inline-flex' : 'none';
+  document.getElementById('cloudModalBackdrop').classList.add('active');
+}
+function closeCloudModal(){
+  document.getElementById('cloudModalBackdrop').classList.remove('active');
+}
+async function connectCloudFromModal(){
+  const pin = document.getElementById('cloudPinInput').value.trim();
+  if(!pin){ alert('Enter a PIN.'); return; }
+  const status = document.getElementById('cloudStatus');
+  status.textContent = 'Connecting…';
+  try{
+    const doc = await cloudDocRef(pin).get();
+    if(doc.exists){
+      const data = doc.data();
+      const ok = confirm('This PIN already has data saved in the cloud. Load it now? (This will replace what you currently see on this device.)\n\nClick Cancel to instead upload what\'s on THIS device and overwrite the cloud copy.');
+      if(ok){
+        if(data.parts) parts = data.parts;
+        if(data.invoices) invoices = data.invoices;
+        if(data.proformas) proformas = data.proformas;
+        if(data.cancelledDocs) cancelledDocs = data.cancelledDocs;
+        if(data.settings) settings = Object.assign(settings, data.settings);
+        renderAll();
+      }
+    }
+    cloudPin = pin;
+    localStorage.setItem('ld3d-cloud-pin', pin);
+    await writeCloud();
+    updateCloudStatus(true);
+    status.textContent = `Connected — syncing with PIN "${pin}".`;
+    document.getElementById('cloudDisconnectBtn').style.display = 'inline-flex';
+  }catch(e){
+    console.error(e);
+    status.textContent = 'Could not connect — check your internet connection and try again.';
+  }
+}
+function disconnectCloud(){
+  cloudPin = null;
+  localStorage.removeItem('ld3d-cloud-pin');
+  updateCloudStatus(false);
+  closeCloudModal();
+}
 
 /* ---- local data-folder storage (File System Access API) ---- */
 let dirHandle = null;
@@ -832,50 +958,71 @@ async function initFolderStatus(){
 }
 
 /* ===================== PERSISTENCE ===================== */
+/* Persistence: window.storage only exists inside claude.ai. When this file is
+   hosted elsewhere (e.g. GitHub Pages), it's undefined — so we fall back to the
+   browser's own localStorage, which works on any normal website. */
+async function kvGet(key){
+  if(window.storage){
+    try{ const r = await window.storage.get(key); if(r) return r.value; }catch(e){}
+  }
+  try{ return localStorage.getItem(key); }catch(e){ return null; }
+}
+async function kvSet(key, value){
+  if(window.storage){
+    try{ await window.storage.set(key, value); return; }catch(e){}
+  }
+  try{ localStorage.setItem(key, value); }catch(e){}
+}
 async function loadAll(){
   try{
-    const p = await window.storage.get('ld3d-parts');
-    if(p) parts = JSON.parse(p.value);
+    const p = await kvGet('ld3d-parts');
+    if(p) parts = JSON.parse(p);
   }catch(e){}
   try{
-    const i = await window.storage.get('ld3d-invoices');
-    if(i) invoices = JSON.parse(i.value);
+    const i = await kvGet('ld3d-invoices');
+    if(i) invoices = JSON.parse(i);
   }catch(e){}
   try{
-    const pf = await window.storage.get('ld3d-proformas');
-    if(pf) proformas = JSON.parse(pf.value);
+    const pf = await kvGet('ld3d-proformas');
+    if(pf) proformas = JSON.parse(pf);
   }catch(e){}
   try{
-    const cx = await window.storage.get('ld3d-cancelled');
-    if(cx) cancelledDocs = JSON.parse(cx.value);
+    const cx = await kvGet('ld3d-cancelled');
+    if(cx) cancelledDocs = JSON.parse(cx);
   }catch(e){}
   try{
-    const s = await window.storage.get('ld3d-settings');
-    if(s) settings = Object.assign(settings, JSON.parse(s.value));
+    const s = await kvGet('ld3d-settings');
+    if(s) settings = Object.assign(settings, JSON.parse(s));
   }catch(e){}
   document.getElementById('printerCountInput').value = settings.printerCount || 1;
   renderAll();
   await initFolderStatus(); // if a folder was connected before, this will override with its data
+  await initCloudStatus(); // if a cloud PIN was connected before, this will override with its data
 }
 async function savePartsToStorage(){
-  try{ await window.storage.set('ld3d-parts', JSON.stringify(parts)); }catch(e){}
+  await kvSet('ld3d-parts', JSON.stringify(parts));
   if(dirHandle) writeFile('parts.json', parts);
+  writeCloud();
 }
 async function saveInvoicesToStorage(){
-  try{ await window.storage.set('ld3d-invoices', JSON.stringify(invoices)); }catch(e){}
+  await kvSet('ld3d-invoices', JSON.stringify(invoices));
   if(dirHandle) writeFile('invoices.json', invoices);
+  writeCloud();
 }
 async function saveProformasToStorage(){
-  try{ await window.storage.set('ld3d-proformas', JSON.stringify(proformas)); }catch(e){}
+  await kvSet('ld3d-proformas', JSON.stringify(proformas));
   if(dirHandle) writeFile('proformas.json', proformas);
+  writeCloud();
 }
 async function saveCancelledToStorage(){
-  try{ await window.storage.set('ld3d-cancelled', JSON.stringify(cancelledDocs)); }catch(e){}
+  await kvSet('ld3d-cancelled', JSON.stringify(cancelledDocs));
   if(dirHandle) writeFile('cancelled.json', cancelledDocs);
+  writeCloud();
 }
 async function saveSettingsToStorage(){
-  try{ await window.storage.set('ld3d-settings', JSON.stringify(settings)); }catch(e){}
+  await kvSet('ld3d-settings', JSON.stringify(settings));
   if(dirHandle) writeFile('settings.json', settings);
+  writeCloud();
 }
 
 /* ===================== HELPERS ===================== */
