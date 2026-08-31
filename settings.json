@@ -1,0 +1,22 @@
+{
+  "bizName": "LD PRINT 3D",
+  "tagline": "3D Printing · CAD Design · Prototyping",
+  "phone": "8682902815",
+  "email": "ldprint3d.in@gmail.com",
+  "gstin": "",
+  "payeeName": "PETER PAUL RAJ",
+  "bankName": "Punjab National Bank",
+  "bankAccount": "2510000400161967",
+  "bankIfsc": "PUNB0251000",
+  "upiId": "peter.d@ptyes",
+  "electricityRate": 10,
+  "printerWattage": 1000,
+  "labourRate": 100,
+  "defaultFilamentCost": 1200,
+  "defaultProfit": 40,
+  "defaultGst": 0,
+  "printerCount": 1,
+  "invoiceSeq": 10,
+  "proformaSeq": 1,
+  "sheetWebhookUrl": ""
+}
