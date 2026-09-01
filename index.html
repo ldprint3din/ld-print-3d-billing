@@ -123,21 +123,40 @@ body{
   overflow:hidden;
 }
 .table-scroll{overflow-x:auto;}
-table{border-collapse:collapse;width:100%;min-width:1500px;}
+table{border-collapse:collapse;width:100%;table-layout:fixed;}
 thead th{
   position:sticky;top:0;background:var(--panel-2);
-  font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.6px;
-  color:var(--text-dim);text-align:right;padding:11px 12px;border-bottom:1px solid var(--border);
-  white-space:nowrap;
+  font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.4px;
+  color:var(--text-dim);text-align:right;padding:10px 8px;border-bottom:1px solid var(--border);
+  white-space:normal;overflow-wrap:break-word;line-height:1.25;
 }
 thead th.al{text-align:left;}
 tbody td{
-  padding:11px 12px;border-bottom:1px solid var(--border-soft);
-  font-family:var(--mono);font-size:12.5px;text-align:right;white-space:nowrap;color:var(--text);
+  padding:9px 8px;border-bottom:1px solid var(--border-soft);
+  font-family:var(--mono);font-size:11.5px;text-align:right;white-space:normal;overflow-wrap:break-word;color:var(--text);
 }
-tbody td.al{text-align:left;font-family:var(--body);font-size:13px;}
+tbody td.al{text-align:left;font-family:var(--body);font-size:12.5px;}
 tbody tr:hover{background:#FFFFFF06;}
 tbody tr:last-child td{border-bottom:none;}
+.calc-table th:nth-child(1),.calc-table td:nth-child(1){width:5%;}
+.calc-table th:nth-child(2),.calc-table td:nth-child(2){width:6%;}
+.calc-table th:nth-child(3),.calc-table td:nth-child(3){width:9%;}
+.calc-table th:nth-child(4),.calc-table td:nth-child(4){width:5%;}
+.calc-table th:nth-child(5),.calc-table td:nth-child(5){width:5%;}
+.calc-table th:nth-child(6),.calc-table td:nth-child(6){width:4%;}
+.calc-table th:nth-child(7),.calc-table td:nth-child(7){width:5%;}
+.calc-table th:nth-child(8),.calc-table td:nth-child(8){width:4%;}
+.calc-table th:nth-child(9),.calc-table td:nth-child(9){width:4%;}
+.calc-table th:nth-child(10),.calc-table td:nth-child(10){width:3%;}
+.calc-table th:nth-child(11),.calc-table td:nth-child(11){width:5%;}
+.calc-table th:nth-child(12),.calc-table td:nth-child(12){width:5%;}
+.calc-table th:nth-child(13),.calc-table td:nth-child(13){width:5%;}
+.calc-table th:nth-child(14),.calc-table td:nth-child(14){width:6%;}
+.calc-table th:nth-child(15),.calc-table td:nth-child(15){width:3%;}
+.calc-table th:nth-child(16),.calc-table td:nth-child(16){width:6%;}
+.calc-table th:nth-child(17),.calc-table td:nth-child(17){width:5%;}
+.calc-table th:nth-child(18),.calc-table td:nth-child(18){width:5%;}
+.calc-table th:nth-child(19),.calc-table td:nth-child(19){width:10%;}
 .part-no{color:var(--amber);font-weight:600;}
 .cost-highlight{color:var(--text);font-weight:600;}
 .cost-total{color:#fff;font-weight:700;background:#4997F41a;}
@@ -196,7 +215,7 @@ tbody tr:last-child td{border-bottom:none;}
 .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
 
 /* ---------- Billing view ---------- */
-.billing-grid{display:grid;grid-template-columns:380px 1fr;gap:22px;align-items:start;}
+.billing-grid{display:grid;grid-template-columns:300px 300px 1fr;gap:20px;align-items:start;}
 @media (max-width:980px){.billing-grid{grid-template-columns:1fr;}}
 .side-card{
   background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;
@@ -219,7 +238,7 @@ tbody tr:last-child td{border-bottom:none;}
 .pick-row .pr-price{font-family:var(--mono);font-size:12.5px;color:var(--green);text-align:right;flex-shrink:0;}
 
 /* ---------- Invoice paper ---------- */
-.invoice-preview-wrap{display:flex;justify-content:center;position:sticky;top:90px;align-self:start;}
+.invoice-preview-wrap{display:flex;justify-content:flex-start;position:sticky;top:90px;align-self:start;}
 #invoiceSheet{
   background:var(--paper);color:var(--paper-text);border-radius:10px;
   box-shadow:0 20px 50px -20px #000a;overflow:hidden;
@@ -388,11 +407,17 @@ tbody tr:last-child td{border-bottom:none;}
 
     <div class="search-row no-print">
       <input type="text" id="calcSearch" placeholder="Search by part number or description…" oninput="renderTable()">
+      <select id="calcSort" onchange="renderTable()" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-family:var(--body);font-size:13px;">
+        <option value="dateDesc">Newest first</option>
+        <option value="dateAsc">Oldest first</option>
+        <option value="nameAsc">Name A–Z</option>
+        <option value="nameDesc">Name Z–A</option>
+      </select>
     </div>
 
     <div class="table-card">
       <div class="table-scroll">
-        <table>
+        <table class="calc-table">
           <thead>
             <tr>
               <th class="al">Date</th>
@@ -462,17 +487,31 @@ tbody tr:last-child td{border-bottom:none;}
     </div>
 
     <div class="billing-grid">
-      <!-- left column -->
+      <!-- column 1: identity + parts -->
       <div class="no-print">
         <div class="side-card">
           <h4 id="invDetailsHeading">Invoice details</h4>
-          <div class="form-grid">
+          <div class="field-stack">
             <div class="field"><label id="invNumberLabel">Invoice No.</label><input id="invNumber" type="text" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>Date</label><input id="invDate" type="date" oninput="renderInvoicePreview()"></div>
-            <div class="field span2"><label>Customer name</label><input id="invCustomer" type="text" list="customerSuggestions" placeholder="Customer name" oninput="renderInvoicePreview()"></div>
-            <div class="field span2"><label>Contact (phone / email)</label><input id="invContact" type="text" list="contactSuggestions" placeholder="Phone / email" oninput="renderInvoicePreview()"></div>
+            <div class="field"><label>Customer name</label><input id="invCustomer" type="text" list="customerSuggestions" placeholder="Customer name" oninput="renderInvoicePreview()"></div>
+            <div class="field"><label>Contact (phone / email)</label><input id="invContact" type="text" list="contactSuggestions" placeholder="Phone / email" oninput="renderInvoicePreview()"></div>
             <datalist id="customerSuggestions"></datalist>
             <datalist id="contactSuggestions"></datalist>
+          </div>
+        </div>
+
+        <div class="side-card">
+          <h4>Select parts to bill <span class="hint" style="text-transform:none;font-weight:400;">(newest first)</span></h4>
+          <div class="pick-list" id="pickList"></div>
+        </div>
+      </div>
+
+      <!-- column 2: pricing options + actions + send -->
+      <div class="no-print">
+        <div class="side-card">
+          <h4>Pricing &amp; terms</h4>
+          <div class="form-grid">
             <div class="field"><label>Shipping (₹)</label><input id="invShipping" type="number" min="0" step="1" value="0" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>Discount (₹)</label><input id="invDiscount" type="number" min="0" step="1" value="0" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>Advance paid (₹)</label><input id="invAdvance" type="number" min="0" step="1" value="0" oninput="renderInvoicePreview()"></div>
@@ -491,11 +530,6 @@ tbody tr:last-child td{border-bottom:none;}
           </div>
         </div>
 
-        <div class="side-card">
-          <h4>Select parts to bill <span class="hint" style="text-transform:none;font-weight:400;">(newest first)</span></h4>
-          <div class="pick-list" id="pickList"></div>
-        </div>
-
         <div class="billing-actions">
           <button class="btn btn-primary" id="saveDocBtn" onclick="saveDocument()">Save Invoice</button>
           <button class="btn btn-blue" onclick="window.print()">🖨 Print / Save PDF</button>
@@ -508,14 +542,14 @@ tbody tr:last-child td{border-bottom:none;}
             <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="shareDocumentFile()">📤 Share (attach file)</button>
             <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="emailDocument()">✉ Open email draft</button>
             <label style="display:block;margin:6px 0 6px;">Message text (copy for WhatsApp / email)</label>
-            <textarea id="msgPreview" readonly rows="5" style="width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 11px;font-family:var(--body);font-size:12.5px;resize:vertical;"></textarea>
+            <textarea id="msgPreview" readonly rows="4" style="width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 11px;font-family:var(--body);font-size:12.5px;resize:vertical;"></textarea>
             <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="copyMessageText()">📋 Copy message text</button>
             <div class="hint" id="shareStatus"></div>
           </div>
         </div>
       </div>
 
-      <!-- right column: invoice preview -->
+      <!-- column 3: invoice preview -->
       <div class="invoice-preview-wrap">
         <div id="invoiceSheet"></div>
       </div>
@@ -568,6 +602,22 @@ tbody tr:last-child td{border-bottom:none;}
         <div class="field span2"><label>Reason (optional)</label><input id="cxReason" type="text" placeholder="e.g. typo, customer cancelled order"></div>
       </div>
       <div style="margin-top:14px;"><button class="btn btn-ghost" onclick="logCancelledNumber()">Log as Cancelled</button></div>
+    </div>
+
+    <div class="side-card" style="margin-top:18px;">
+      <h4>Set next document number</h4>
+      <p class="hint" style="margin-top:0;margin-bottom:12px;">If a sequence gets stuck (e.g. from manually-typed numbers), set the correct next number here.</p>
+      <div class="form-grid">
+        <div class="field">
+          <label>Type</label>
+          <select id="snType">
+            <option value="invoice">Tax Invoice</option>
+            <option value="proforma">Proforma</option>
+          </select>
+        </div>
+        <div class="field"><label>Next number should be</label><input id="snNumber" type="text" placeholder="e.g. PI-2026-0014"></div>
+      </div>
+      <div style="margin-top:14px;"><button class="btn btn-ghost" onclick="setNextNumber()">Set Next Number</button></div>
     </div>
 
     <div class="panel-head" style="margin-top:22px;">
@@ -646,6 +696,8 @@ tbody tr:last-child td{border-bottom:none;}
       <div class="field"><label>Facebook</label><input type="text" id="sFacebook" placeholder="Optional"></div>
       <div class="field"><label>Instagram</label><input type="text" id="sInstagram" placeholder="Optional"></div>
       <div class="field span2"><label>Footer quote (shown at bottom of invoice)</label><input type="text" id="sFooterQuote" placeholder="e.g. Turning ideas into reality, layer by layer."></div>
+      <div class="field span2"><label>Default proforma note/terms</label><input type="text" id="sDefaultPfTerms" placeholder="e.g. Estimated delivery confirmed within 48 hours"></div>
+      <div class="field span2"><label>Default invoice note/terms</label><input type="text" id="sDefaultInvTerms" placeholder="e.g. Payment due within 48 hours of delivery"></div>
       <div class="field"><label>Electricity rate (₹/kWh)</label><input type="number" id="sElecRate" min="0" step="0.1"></div>
       <div class="field"><label>Printer wattage (W)</label><input type="number" id="sWattage" min="0" step="1"></div>
       <div class="field"><label>Labour rate (₹/hr)</label><input type="number" id="sLabourRate" min="0" step="1"></div>
@@ -725,6 +777,8 @@ let settings = {
   bizName:'LD PRINT 3D', tagline:'DESIGN • PRINT • INNOVATE',
   phone:'', email:'', gstin:'', address:'', website:'', whatsapp:'', facebook:'', instagram:'',
   footerQuote:'Turning ideas into reality, layer by layer.',
+  defaultProformaTerms:'Estimated delivery timeline will be confirmed within 48 hours of order placement.',
+  defaultInvoiceTerms:'Payment is due within 48 hours of delivery.',
   payeeName:'', bankName:'', bankAccount:'', bankIfsc:'', upiId:'',
   electricityRate:8, printerWattage:150, labourRate:150,
   defaultFilamentCost:1200, defaultProfit:40, defaultGst:0,
@@ -1087,9 +1141,15 @@ function populateCustomerSuggestions(){
 function renderTable(){
   const body = document.getElementById('partsBody');
   const q = (document.getElementById('calcSearch')?.value || '').trim().toLowerCase();
-  const filtered = q
+  const sortMode = document.getElementById('calcSort')?.value || 'dateDesc';
+  let filtered = q
     ? parts.filter(p => (p.partNumber||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q))
-    : parts;
+    : [...parts];
+  filtered = [...filtered];
+  if(sortMode === 'dateDesc') filtered.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  else if(sortMode === 'dateAsc') filtered.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  else if(sortMode === 'nameAsc') filtered.sort((a,b)=> (a.description||'').localeCompare(b.description||''));
+  else if(sortMode === 'nameDesc') filtered.sort((a,b)=> (b.description||'').localeCompare(a.description||''));
   if(parts.length === 0){
     body.innerHTML = `<tr class="empty-row"><td colspan="19">No parts yet — click "+ Add Part" to start calculating costs.</td></tr>`;
   } else if(filtered.length === 0){
@@ -1246,6 +1306,8 @@ function openSettings(){
   document.getElementById('sFacebook').value = settings.facebook || '';
   document.getElementById('sInstagram').value = settings.instagram || '';
   document.getElementById('sFooterQuote').value = settings.footerQuote || '';
+  document.getElementById('sDefaultPfTerms').value = settings.defaultProformaTerms || '';
+  document.getElementById('sDefaultInvTerms').value = settings.defaultInvoiceTerms || '';
   document.getElementById('sGstin').value = settings.gstin || '';
   document.getElementById('sPayeeName').value = settings.payeeName || '';
   document.getElementById('sBankName').value = settings.bankName || '';
@@ -1274,6 +1336,8 @@ function saveSettings(){
   settings.facebook = document.getElementById('sFacebook').value.trim();
   settings.instagram = document.getElementById('sInstagram').value.trim();
   settings.footerQuote = document.getElementById('sFooterQuote').value.trim();
+  settings.defaultProformaTerms = document.getElementById('sDefaultPfTerms').value.trim();
+  settings.defaultInvoiceTerms = document.getElementById('sDefaultInvTerms').value.trim();
   settings.gstin = document.getElementById('sGstin').value.trim();
   settings.payeeName = document.getElementById('sPayeeName').value.trim();
   settings.bankName = document.getElementById('sBankName').value.trim();
@@ -1348,7 +1412,7 @@ function newDocumentDraft(){
   document.getElementById('invRound').value = 'none';
   document.getElementById('invPaymentTerms').value = '';
   document.getElementById('invDispatchMode').value = '';
-  document.getElementById('invNote').value = '';
+  document.getElementById('invNote').value = billingDocType==='proforma' ? (settings.defaultProformaTerms||'') : (settings.defaultInvoiceTerms||'');
   renderPickList();
   renderInvoicePreview();
 }
@@ -1439,6 +1503,7 @@ function buildSheetHTML(record){
         <div class="mb-row"><span>${isPI ? 'PI NO.' : 'INVOICE NO.'}</span><b>${escapeHtml(record.number)}</b></div>
         ${record.paymentTerms ? `<div class="mb-row"><span>PAYMENT TERMS</span><b>${escapeHtml(record.paymentTerms)}</b></div>` : ''}
         ${record.dispatchMode ? `<div class="mb-row"><span>DISPATCH MODE</span><b>${escapeHtml(record.dispatchMode)}</b></div>` : ''}
+        ${!isPI && record.sourceProforma ? `<div class="mb-row"><span>REF. PROFORMA</span><b>${escapeHtml(record.sourceProforma)}</b></div>` : ''}
         ${!isPI && settings.gstin ? `<div class="mb-row"><span>GSTIN</span><b>${escapeHtml(settings.gstin)}</b></div>` : ''}
       </div>
     </div>
@@ -1614,7 +1679,11 @@ function saveDocument(){
     invoices.unshift(record);
     if(currentConvertSourceProformaId){
       const src = proformas.find(p=>p.id===currentConvertSourceProformaId);
-      if(src){ src.convertedToInvoice = record.number; saveProformasToStorage(); }
+      if(src){
+        record.sourceProforma = src.number;
+        src.convertedToInvoice = record.number;
+        saveProformasToStorage();
+      }
       currentConvertSourceProformaId = null;
     }
     saveInvoicesToStorage();
@@ -1666,6 +1735,21 @@ function logCancelledNumber(){
   document.getElementById('cxReason').value = '';
   prefillCancelNumber();
   renderTransactions();
+}
+
+function setNextNumber(){
+  const docType = document.getElementById('snType').value;
+  const raw = document.getElementById('snNumber').value.trim();
+  const m = /(\d+)\s*$/.exec(raw);
+  if(!m){ alert('Enter the full number you want next, e.g. PI-2026-0014.'); return; }
+  const seq = parseInt(m[1], 10);
+  if(isNaN(seq) || seq < 1){ alert('Could not read a valid sequence number from that.'); return; }
+  if(docType === 'proforma') settings.proformaSeq = seq;
+  else settings.invoiceSeq = seq;
+  saveSettingsToStorage();
+  document.getElementById('snNumber').value = '';
+  renderTransactions();
+  alert(`Next ${docType==='proforma'?'proforma':'invoice'} number is now ${nextDocNumber(docType)}.`);
 }
 
 function renderTransactions(){
@@ -1809,14 +1893,7 @@ function convertProformaToInvoice(id){
   document.getElementById('invDispatchMode').value = pf.dispatchMode || '';
   document.getElementById('invNote').value = pf.note || '';
   document.getElementById('invDate').value = todayISO();
-  const derived = deriveMatchingNumber(pf.number, 'LD');
-  if(derived){
-    document.getElementById('invNumber').value = derived.number;
-    if(derived.seq + 1 > (settings.invoiceSeq || 1)){
-      settings.invoiceSeq = derived.seq + 1;
-      saveSettingsToStorage();
-    }
-  }
+  document.getElementById('invNumber').value = nextDocNumber('invoice');
   currentConvertSourceProformaId = pf.id;
   renderPickList();
   renderInvoicePreview();
@@ -1920,6 +1997,7 @@ function renderAll(){
   document.getElementById('invDate').value = todayISO();
   document.getElementById('invGst').value = settings.defaultGst;
   document.getElementById('invAdvance').value = 0;
+  document.getElementById('invNote').value = billingDocType==='proforma' ? (settings.defaultProformaTerms||'') : (settings.defaultInvoiceTerms||'');
   renderPickList();
   renderInvoicePreview();
   renderTransactions();
