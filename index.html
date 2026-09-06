@@ -138,25 +138,23 @@ tbody td{
 tbody td.al{text-align:left;font-family:var(--body);font-size:12.5px;}
 tbody tr:hover{background:#FFFFFF06;}
 tbody tr:last-child td{border-bottom:none;}
-.calc-table th:nth-child(1),.calc-table td:nth-child(1){width:5%;}
-.calc-table th:nth-child(2),.calc-table td:nth-child(2){width:6%;}
-.calc-table th:nth-child(3),.calc-table td:nth-child(3){width:9%;}
-.calc-table th:nth-child(4),.calc-table td:nth-child(4){width:5%;}
-.calc-table th:nth-child(5),.calc-table td:nth-child(5){width:5%;}
-.calc-table th:nth-child(6),.calc-table td:nth-child(6){width:4%;}
-.calc-table th:nth-child(7),.calc-table td:nth-child(7){width:5%;}
-.calc-table th:nth-child(8),.calc-table td:nth-child(8){width:4%;}
-.calc-table th:nth-child(9),.calc-table td:nth-child(9){width:4%;}
-.calc-table th:nth-child(10),.calc-table td:nth-child(10){width:3%;}
-.calc-table th:nth-child(11),.calc-table td:nth-child(11){width:5%;}
-.calc-table th:nth-child(12),.calc-table td:nth-child(12){width:5%;}
-.calc-table th:nth-child(13),.calc-table td:nth-child(13){width:5%;}
-.calc-table th:nth-child(14),.calc-table td:nth-child(14){width:6%;}
-.calc-table th:nth-child(15),.calc-table td:nth-child(15){width:3%;}
-.calc-table th:nth-child(16),.calc-table td:nth-child(16){width:6%;}
-.calc-table th:nth-child(17),.calc-table td:nth-child(17){width:5%;}
-.calc-table th:nth-child(18),.calc-table td:nth-child(18){width:5%;}
-.calc-table th:nth-child(19),.calc-table td:nth-child(19){width:10%;}
+.calc-table th:nth-child(1),.calc-table td:nth-child(1){width:6%;}
+.calc-table th:nth-child(2),.calc-table td:nth-child(2){width:7%;}
+.calc-table th:nth-child(3),.calc-table td:nth-child(3){width:14%;}
+.calc-table th:nth-child(4),.calc-table td:nth-child(4){width:6%;}
+.calc-table th:nth-child(5),.calc-table td:nth-child(5){width:6%;}
+.calc-table th:nth-child(6),.calc-table td:nth-child(6){width:5%;}
+.calc-table th:nth-child(7),.calc-table td:nth-child(7){width:6%;}
+.calc-table th:nth-child(8),.calc-table td:nth-child(8){width:5%;}
+.calc-table th:nth-child(9),.calc-table td:nth-child(9){width:5%;}
+.calc-table th:nth-child(10),.calc-table td:nth-child(10){width:4%;}
+.calc-table th:nth-child(11),.calc-table td:nth-child(11){width:6%;}
+.calc-table th:nth-child(12),.calc-table td:nth-child(12){width:6%;}
+.calc-table th:nth-child(13),.calc-table td:nth-child(13){width:6%;}
+.calc-table th:nth-child(14),.calc-table td:nth-child(14){width:7%;}
+.calc-table th:nth-child(15),.calc-table td:nth-child(15){width:4%;}
+.calc-table th:nth-child(16),.calc-table td:nth-child(16){width:7%;}
+.calc-table th:nth-child(17),.calc-table td:nth-child(17){width:10%;}
 .part-no{color:var(--amber);font-weight:600;}
 .cost-highlight{color:var(--text);font-weight:600;}
 .cost-total{color:#fff;font-weight:700;background:#4997F41a;}
@@ -242,7 +240,7 @@ tbody tr:last-child td{border-bottom:none;}
 #invoiceSheet{
   background:var(--paper);color:var(--paper-text);border-radius:10px;
   box-shadow:0 20px 50px -20px #000a;overflow:hidden;
-  width:100%;max-width:800px;aspect-ratio:1/1.4142;font-size:13px;
+  width:100%;max-width:800px;font-size:13px;
 }
 .inv-banner{position:relative;overflow:hidden;border-radius:10px 10px 0 0;background:linear-gradient(120deg,#EEF3FE 0%,#F4F6F7 55%);padding:22px 26px 18px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;border-bottom:3px solid var(--amber);}
 .inv-banner-corner{position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:linear-gradient(135deg,var(--amber),var(--purple));border-radius:50%;opacity:0.18;}
@@ -342,6 +340,9 @@ tbody tr:last-child td{border-bottom:none;}
 .status-converted{background:#8D93AC22;color:var(--text-muted);}
 .status-cancelled{background:#E15B5B22;color:var(--red);}
 .type-pill{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:4px;background:var(--panel-3);color:var(--text-muted);}
+.tx-note-input{width:100%;min-width:140px;background:transparent;border:1px solid transparent;color:var(--text);font-family:var(--body);font-size:12px;padding:5px 7px;border-radius:6px;}
+.tx-note-input:hover{border-color:var(--border);}
+.tx-note-input:focus{outline:none;border-color:var(--amber);background:var(--panel-2);}
 
 /* ---------- Print ---------- */
 @media print{
@@ -356,6 +357,37 @@ tbody tr:last-child td{border-bottom:none;}
 }
 
 .hint{font-size:11.5px;color:var(--text-dim);margin-top:8px;}
+
+/* ---------- Mobile ---------- */
+@media (max-width:640px){
+  .wrap{padding:14px 12px 40px;}
+  .topbar{padding:12px 14px;gap:10px;}
+  .brand-mark{width:32px;height:32px;font-size:11px;}
+  .brand-text h1{font-size:15px;}
+  .brand-text p{font-size:9.5px;}
+  .mode-switch{width:100%;order:3;}
+  .mode-switch button{flex:1;padding:8px 6px;font-size:11px;}
+  .topbar-actions{gap:6px;}
+  .icon-btn{width:34px;height:34px;}
+  .panel-head{flex-direction:column;align-items:flex-start;}
+  .panel-head > div:last-child{width:100%;}
+  .console{padding:14px 16px;gap:16px;}
+  .readout .value{font-size:17px;}
+  .printer-count-field{margin-left:0;width:100%;justify-content:space-between;}
+  .form-grid{grid-template-columns:1fr;}
+  .billing-actions{flex-direction:column;}
+  .billing-actions .btn{width:100%;justify-content:center;}
+  .doc-toggle{width:100%;}
+  .doc-toggle button{flex:1;}
+  .modal{padding:20px 18px 18px;max-height:85vh;overflow-y:auto;}
+  #invoiceSheet{font-size:11.5px;}
+  .inv-banner,.inv-title-row,.bill-to-row,.inv-items,.inv-note-box,.inv-totals,.inv-payment,.inv-strip,.inv-footer-strip{margin-left:14px;margin-right:14px;}
+  .inv-items{margin-left:14px;margin-right:14px;}
+  .inv-totals{width:auto;margin-right:14px;}
+  .inv-items-head,.inv-item-row{grid-template-columns:28px 1fr 34px 50px 50px 62px 62px;font-size:10px;}
+  .inv-items-head > div,.inv-item-row > div{padding:6px 4px;}
+  div[style*="display:grid;grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important;}
+}
 </style>
 </head>
 <body>
@@ -436,8 +468,6 @@ tbody tr:last-child td{border-bottom:none;}
               <th>Total Cost</th>
               <th>Profit %</th>
               <th>Selling Price</th>
-              <th>Price −10%</th>
-              <th>Price +10%</th>
               <th class="al">Actions</th>
             </tr>
           </thead>
@@ -494,7 +524,7 @@ tbody tr:last-child td{border-bottom:none;}
           <div class="field-stack">
             <div class="field"><label id="invNumberLabel">Invoice No.</label><input id="invNumber" type="text" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>Date</label><input id="invDate" type="date" oninput="renderInvoicePreview()"></div>
-            <div class="field"><label>Customer name</label><input id="invCustomer" type="text" list="customerSuggestions" placeholder="Customer name" oninput="renderInvoicePreview()"></div>
+            <div class="field"><label>Customer name</label><input id="invCustomer" type="text" value="M/S " list="customerSuggestions" placeholder="Customer name" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>Contact (phone / email)</label><input id="invContact" type="text" list="contactSuggestions" placeholder="Phone / email" oninput="renderInvoicePreview()"></div>
             <datalist id="customerSuggestions"></datalist>
             <datalist id="contactSuggestions"></datalist>
@@ -587,37 +617,39 @@ tbody tr:last-child td{border-bottom:none;}
       </div>
     </div>
 
-    <div class="side-card" style="margin-top:18px;">
-      <h4>Log a cancelled / unused number</h4>
-      <p class="hint" style="margin-top:0;margin-bottom:12px;">If a number gets skipped or a document is voided, log it here so it stays accounted for and doesn't get reused.</p>
-      <div class="form-grid">
-        <div class="field">
-          <label>Type</label>
-          <select id="cxType" onchange="prefillCancelNumber()">
-            <option value="invoice">Tax Invoice</option>
-            <option value="proforma">Proforma</option>
-          </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:18px;">
+      <div class="side-card" style="margin-top:0;">
+        <h4>Log a cancelled / unused number</h4>
+        <p class="hint" style="margin-top:0;margin-bottom:12px;">If a number gets skipped or a document is voided, log it here so it stays accounted for and doesn't get reused.</p>
+        <div class="form-grid">
+          <div class="field">
+            <label>Type</label>
+            <select id="cxType" onchange="prefillCancelNumber()">
+              <option value="invoice">Tax Invoice</option>
+              <option value="proforma">Proforma</option>
+            </select>
+          </div>
+          <div class="field"><label>Number</label><input id="cxNumber" type="text"></div>
+          <div class="field span2"><label>Reason (optional)</label><input id="cxReason" type="text" placeholder="e.g. typo, customer cancelled order"></div>
         </div>
-        <div class="field"><label>Number</label><input id="cxNumber" type="text"></div>
-        <div class="field span2"><label>Reason (optional)</label><input id="cxReason" type="text" placeholder="e.g. typo, customer cancelled order"></div>
+        <div style="margin-top:14px;"><button class="btn btn-ghost" onclick="logCancelledNumber()">Log as Cancelled</button></div>
       </div>
-      <div style="margin-top:14px;"><button class="btn btn-ghost" onclick="logCancelledNumber()">Log as Cancelled</button></div>
-    </div>
 
-    <div class="side-card" style="margin-top:18px;">
-      <h4>Set next document number</h4>
-      <p class="hint" style="margin-top:0;margin-bottom:12px;">If a sequence gets stuck (e.g. from manually-typed numbers), set the correct next number here.</p>
-      <div class="form-grid">
-        <div class="field">
-          <label>Type</label>
-          <select id="snType">
-            <option value="invoice">Tax Invoice</option>
-            <option value="proforma">Proforma</option>
-          </select>
+      <div class="side-card" style="margin-top:0;">
+        <h4>Set next document number</h4>
+        <p class="hint" style="margin-top:0;margin-bottom:12px;">If a sequence gets stuck (e.g. from manually-typed numbers), set the correct next number here.</p>
+        <div class="form-grid">
+          <div class="field">
+            <label>Type</label>
+            <select id="snType">
+              <option value="invoice">Tax Invoice</option>
+              <option value="proforma">Proforma</option>
+            </select>
+          </div>
+          <div class="field"><label>Next number should be</label><input id="snNumber" type="text" placeholder="e.g. PI-2026-0014"></div>
         </div>
-        <div class="field"><label>Next number should be</label><input id="snNumber" type="text" placeholder="e.g. PI-2026-0014"></div>
+        <div style="margin-top:14px;"><button class="btn btn-ghost" onclick="setNextNumber()">Set Next Number</button></div>
       </div>
-      <div style="margin-top:14px;"><button class="btn btn-ghost" onclick="setNextNumber()">Set Next Number</button></div>
     </div>
 
     <div class="panel-head" style="margin-top:22px;">
@@ -635,6 +667,7 @@ tbody tr:last-child td{border-bottom:none;}
               <th class="al">Type</th>
               <th class="al">Number</th>
               <th class="al">Customer</th>
+              <th class="al">Note</th>
               <th>Total</th>
               <th class="al">Status</th>
               <th class="al">Actions</th>
@@ -846,6 +879,9 @@ async function writeCloud(){
   }catch(e){ console.error('Cloud write failed', e); }
   cloudSaving = false;
 }
+// If a save happened while offline, the write above silently fails.
+// Once the browser reports connectivity again, push the current state up automatically.
+window.addEventListener('online', ()=>{ if(cloudPin) writeCloud(); });
 function openCloudModal(){
   if(!cloudDb){ alert('Cloud sync could not load (needs an internet connection). Everything else in the app still works normally.'); return; }
   document.getElementById('cloudPinInput').value = cloudPin || '';
@@ -1151,9 +1187,9 @@ function renderTable(){
   else if(sortMode === 'nameAsc') filtered.sort((a,b)=> (a.description||'').localeCompare(b.description||''));
   else if(sortMode === 'nameDesc') filtered.sort((a,b)=> (b.description||'').localeCompare(a.description||''));
   if(parts.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="19">No parts yet — click "+ Add Part" to start calculating costs.</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="17">No parts yet — click "+ Add Part" to start calculating costs.</td></tr>`;
   } else if(filtered.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="19">No parts match "${escapeHtml(q)}".</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="17">No parts match "${escapeHtml(q)}".</td></tr>`;
   } else {
     body.innerHTML = filtered.map(part=>{
       const c = calcRow(part);
@@ -1174,8 +1210,6 @@ function renderTable(){
         <td class="cost-total">${inr(c.totalCost)}</td>
         <td class="muted-cell">${num(part.profitPercent)}%</td>
         <td class="sell-price">${inr(c.sellingPrice)}</td>
-        <td class="muted-cell">${inr(c.priceMinus10)}</td>
-        <td class="muted-cell">${inr(c.pricePlus10)}</td>
         <td class="al">
           <div class="row-actions">
             <button class="btn btn-ghost btn-sm" onclick="openPartModal('${part.id}')">Edit</button>
@@ -1403,7 +1437,7 @@ function newDocumentDraft(){
   currentConvertSourceProformaId = null;
   document.getElementById('invNumber').value = nextDocNumber(billingDocType);
   document.getElementById('invDate').value = todayISO();
-  document.getElementById('invCustomer').value = '';
+  document.getElementById('invCustomer').value = 'M/S ';
   document.getElementById('invContact').value = '';
   document.getElementById('invGst').value = settings.defaultGst;
   document.getElementById('invShipping').value = 0;
@@ -1772,14 +1806,14 @@ function renderTransactions(){
 
   const body = document.getElementById('txBody');
   if(rows.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="7">No transactions ${q?'match your search':'yet'}.</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="8">No transactions ${q?'match your search':'yet'}.</td></tr>`;
     return;
   }
   body.innerHTML = rows.map(r=>{
     let statusHtml, actionsHtml;
     if(r._kind === 'cancelled'){
       statusHtml = `<span class="status-pill status-cancelled">Cancelled</span>`;
-      actionsHtml = r.reason ? escapeHtml(r.reason) : '<span class="muted-cell">—</span>';
+      actionsHtml = '<span class="muted-cell">—</span>';
     } else if(r._kind === 'proforma'){
       statusHtml = r.convertedToInvoice
         ? `<span class="status-pill status-converted">→ ${escapeHtml(r.convertedToInvoice)}</span>`
@@ -1797,16 +1831,29 @@ function renderTransactions(){
           <button class="btn btn-ghost btn-sm" onclick="openPaymentModal('${r.id}')">💳 Payment</button>
         </div>`;
     }
+    const noteVal = r._kind === 'cancelled' ? (r.reason||'') : (r.internalNote||'');
     return `<tr>
       <td class="al">${fmtDateDMY(r.date)}</td>
       <td class="al"><span class="type-pill">${r._kind==='invoice'?'Invoice':r._kind==='proforma'?'Proforma':'Cancelled'}</span></td>
       <td class="al part-no">${escapeHtml(r.number)}</td>
       <td class="al">${escapeHtml(r.customer||'—')}</td>
+      <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(noteVal)}" placeholder="Add a note…" onchange="updateTxNote('${r.id}','${r._kind}', this.value)"></td>
       <td>${r._kind==='cancelled' ? '—' : inr(r.grandTotal)}</td>
       <td class="al">${statusHtml}</td>
       <td class="al">${actionsHtml}</td>
     </tr>`;
   }).join('');
+}
+function updateTxNote(id, kind, value){
+  let list, saveFn;
+  if(kind==='cancelled'){ list = cancelledDocs; saveFn = saveCancelledToStorage; }
+  else if(kind==='proforma'){ list = proformas; saveFn = saveProformasToStorage; }
+  else { list = invoices; saveFn = saveInvoicesToStorage; }
+  const rec = list.find(r=>r.id===id);
+  if(!rec) return;
+  if(kind==='cancelled') rec.reason = value;
+  else rec.internalNote = value;
+  saveFn();
 }
 
 /* ===================== PAYMENT MODAL ===================== */
