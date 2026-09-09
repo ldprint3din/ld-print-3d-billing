@@ -340,6 +340,21 @@ tbody tr:last-child td{border-bottom:none;}
 .status-converted{background:#8D93AC22;color:var(--text-muted);}
 .status-cancelled{background:#E15B5B22;color:var(--red);}
 .type-pill{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:4px;background:var(--panel-3);color:var(--text-muted);}
+.prod-status-select{
+  font-size:10.5px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;
+  padding:4px 22px 4px 9px;border-radius:20px;border:none;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:calc(100% - 12px) center, calc(100% - 8px) center;
+  background-size:4px 4px,4px 4px;background-repeat:no-repeat;
+}
+.prod-status-select.ps-none{background-color:var(--panel-3);color:var(--text-dim);}
+.prod-status-select.ps-production{background-color:#F2894B;color:#3A1B00;}
+.prod-status-select.ps-sent{background-color:#826DC3;color:#fff;}
+.prod-status-select.ps-delayed{background-color:#F2C230;color:#3A2E00;}
+.prod-status-select.ps-completed{background-color:#4CAF6D;color:#052711;}
+.prod-status-select.ps-cancelled{background-color:#E15B5B;color:#fff;}
+.prod-status-select option{background:var(--panel-2);color:var(--text);}
 .tx-note-input{width:100%;min-width:140px;background:transparent;border:1px solid transparent;color:var(--text);font-family:var(--body);font-size:12px;padding:5px 7px;border-radius:6px;}
 .tx-note-input:hover{border-color:var(--border);}
 .tx-note-input:focus{outline:none;border-color:var(--amber);background:var(--panel-2);}
@@ -668,6 +683,7 @@ tbody tr:last-child td{border-bottom:none;}
               <th class="al">Number</th>
               <th class="al">Customer</th>
               <th class="al">Note</th>
+              <th class="al">Production</th>
               <th>Total</th>
               <th class="al">Status</th>
               <th class="al">Actions</th>
@@ -1806,7 +1822,7 @@ function renderTransactions(){
 
   const body = document.getElementById('txBody');
   if(rows.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="8">No transactions ${q?'match your search':'yet'}.</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="9">No transactions ${q?'match your search':'yet'}.</td></tr>`;
     return;
   }
   body.innerHTML = rows.map(r=>{
@@ -1832,17 +1848,33 @@ function renderTransactions(){
         </div>`;
     }
     const noteVal = r._kind === 'cancelled' ? (r.reason||'') : (r.internalNote||'');
+    const psMap = {none:['ps-none','—'], production:['ps-production','In Production'], sent:['ps-sent','Sent – Awaiting Feedback'], delayed:['ps-delayed','Delayed'], completed:['ps-completed','Completed'], cancelled:['ps-cancelled','Cancelled']};
+    const psVal = r.prodStatus || 'none';
+    const prodStatusHtml = r._kind === 'cancelled' ? '<span class="muted-cell">—</span>' : `
+      <select class="prod-status-select ${psMap[psVal][0]}" onchange="updateProdStatus('${r.id}','${r._kind}', this.value)">
+        ${Object.keys(psMap).map(k=>`<option value="${k}" ${k===psVal?'selected':''}>${psMap[k][1]}</option>`).join('')}
+      </select>`;
     return `<tr>
       <td class="al">${fmtDateDMY(r.date)}</td>
       <td class="al"><span class="type-pill">${r._kind==='invoice'?'Invoice':r._kind==='proforma'?'Proforma':'Cancelled'}</span></td>
       <td class="al part-no">${escapeHtml(r.number)}</td>
       <td class="al">${escapeHtml(r.customer||'—')}</td>
       <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(noteVal)}" placeholder="Add a note…" onchange="updateTxNote('${r.id}','${r._kind}', this.value)"></td>
+      <td class="al">${prodStatusHtml}</td>
       <td>${r._kind==='cancelled' ? '—' : inr(r.grandTotal)}</td>
       <td class="al">${statusHtml}</td>
       <td class="al">${actionsHtml}</td>
     </tr>`;
   }).join('');
+}
+function updateProdStatus(id, kind, value){
+  const list = kind==='proforma' ? proformas : invoices;
+  const saveFn = kind==='proforma' ? saveProformasToStorage : saveInvoicesToStorage;
+  const rec = list.find(r=>r.id===id);
+  if(!rec) return;
+  rec.prodStatus = value;
+  saveFn();
+  renderTransactions();
 }
 function updateTxNote(id, kind, value){
   let list, saveFn;
