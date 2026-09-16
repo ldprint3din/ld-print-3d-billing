@@ -349,12 +349,26 @@ tbody tr:last-child td{border-bottom:none;}
   background-size:4px 4px,4px 4px;background-repeat:no-repeat;
 }
 .prod-status-select.ps-none{background-color:var(--panel-3);color:var(--text-dim);}
-.prod-status-select.ps-production{background-color:#F2894B;color:#3A1B00;}
-.prod-status-select.ps-sent{background-color:#826DC3;color:#fff;}
+.prod-status-select.ps-quoted{background-color:#4997F4;color:#fff;}
+.prod-status-select.ps-approved{background-color:#826DC3;color:#fff;}
+.prod-status-select.ps-printing{background-color:#F2894B;color:#3A1B00;}
 .prod-status-select.ps-delayed{background-color:#F2C230;color:#3A2E00;}
-.prod-status-select.ps-completed{background-color:#4CAF6D;color:#052711;}
+.prod-status-select.ps-printed{background-color:#7FD4A0;color:#04240F;}
+.prod-status-select.ps-invoiced{background-color:#2FA6A0;color:#00201F;}
+.prod-status-select.ps-invsent{background-color:#2F7FA6;color:#fff;}
+.prod-status-select.ps-delivered{background-color:#4CAF6D;color:#052711;}
+.prod-status-select.ps-closed{background-color:#2E7D4A;color:#fff;}
 .prod-status-select.ps-cancelled{background-color:#E15B5B;color:#fff;}
 .prod-status-select option{background:var(--panel-2);color:var(--text);}
+.action-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.act-chip{font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--border);}
+.act-approval{background:#4997F41a;color:#8FC0FF;border-color:#4997F444;}
+.act-toinvoice{background:#7FD4A01a;color:#7FD4A0;border-color:#7FD4A044;}
+.act-delayed{background:#F2C2301a;color:#F2C230;border-color:#F2C23044;}
+.act-unpaid{background:#E15B5B1a;color:#E88;border-color:#E15B5B44;}
+.doc-tag{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;}
+.doc-pf{background:#826DC333;color:#B9A9EE;}
+.doc-inv{background:#4997F433;color:#8FC0FF;}
 .tx-note-input{width:100%;min-width:140px;background:transparent;border:1px solid transparent;color:var(--text);font-family:var(--body);font-size:12px;padding:5px 7px;border-radius:6px;}
 .tx-note-input:hover{border-color:var(--border);}
 .tx-note-input:focus{outline:none;border-color:var(--amber);background:var(--panel-2);}
@@ -668,8 +682,9 @@ tbody tr:last-child td{border-bottom:none;}
     </div>
 
     <div class="panel-head" style="margin-top:22px;">
-      <h2 style="font-size:14px;">All invoices &amp; proformas</h2>
+      <h2 style="font-size:14px;">Job tracker</h2>
     </div>
+    <div id="txActionBar" class="action-bar"></div>
     <div class="search-row">
       <input type="text" id="txSearch" placeholder="Search by number or customer…" oninput="renderTransactions()">
     </div>
@@ -679,13 +694,12 @@ tbody tr:last-child td{border-bottom:none;}
           <thead>
             <tr>
               <th class="al">Date</th>
-              <th class="al">Type</th>
-              <th class="al">Number</th>
+              <th class="al">Documents</th>
               <th class="al">Customer</th>
               <th class="al">Note</th>
-              <th class="al">Production</th>
-              <th>Total</th>
-              <th class="al">Status</th>
+              <th class="al">Stage</th>
+              <th>Value</th>
+              <th class="al">Payment</th>
               <th class="al">Actions</th>
             </tr>
           </thead>
@@ -1732,6 +1746,8 @@ function saveDocument(){
       if(src){
         record.sourceProforma = src.number;
         src.convertedToInvoice = record.number;
+        record.internalNote = record.internalNote || src.internalNote || '';
+        record.prodStatus = 'invoiced'; // auto-advance stage on conversion
         saveProformasToStorage();
       }
       currentConvertSourceProformaId = null;
@@ -1802,6 +1818,51 @@ function setNextNumber(){
   alert(`Next ${docType==='proforma'?'proforma':'invoice'} number is now ${nextDocNumber(docType)}.`);
 }
 
+const STAGES = {
+  none:      ['ps-none','— Set stage —'],
+  quoted:    ['ps-quoted','Quoted'],
+  approved:  ['ps-approved','Approved'],
+  printing:  ['ps-printing','Printing'],
+  delayed:   ['ps-delayed','Delayed'],
+  printed:   ['ps-printed','Printed'],
+  invoiced:  ['ps-invoiced','Invoiced'],
+  invsent:   ['ps-invsent','Invoice Sent'],
+  delivered: ['ps-delivered','Product Delivered'],
+  closed:    ['ps-closed','Closed'],
+  cancelled: ['ps-cancelled','Cancelled']
+};
+
+/* Merge each proforma with the invoice it became, so one physical job = one row. */
+function buildJobRows(){
+  const jobs = [];
+  const usedInvoiceIds = new Set();
+  proformas.forEach(pf=>{
+    const inv = pf.convertedToInvoice ? invoices.find(i=>i.number === pf.convertedToInvoice) : null;
+    if(inv) usedInvoiceIds.add(inv.id);
+    jobs.push({ kind:'job', proforma:pf, invoice:inv, createdAt: pf.createdAt||0 });
+  });
+  invoices.forEach(inv=>{
+    if(!usedInvoiceIds.has(inv.id)) jobs.push({ kind:'job', proforma:null, invoice:inv, createdAt: inv.createdAt||0 });
+  });
+  cancelledDocs.forEach(c=>{
+    jobs.push({ kind:'cancelled', cancelled:c, createdAt: c.createdAt||0 });
+  });
+  return jobs;
+}
+function jobStage(job){
+  if(job.kind === 'cancelled') return 'cancelled';
+  // an explicitly-set stage always wins; otherwise infer a sensible default
+  const explicit = (job.invoice && job.invoice.prodStatus) || (job.proforma && job.proforma.prodStatus);
+  if(explicit && explicit !== 'none') return explicit;
+  if(job.invoice){
+    const paid = (job.invoice.advance||0) + (job.invoice.internalPaid||0);
+    if(paid >= job.invoice.grandTotal) return 'closed';
+    return 'invoiced';
+  }
+  return 'quoted';
+}
+function jobPrimary(job){ return job.invoice || job.proforma; }
+
 function renderTransactions(){
   document.getElementById('txPfCount').textContent = proformas.length;
   document.getElementById('txInvCount').textContent = invoices.length;
@@ -1810,59 +1871,100 @@ function renderTransactions(){
   prefillCancelNumber();
 
   const q = (document.getElementById('txSearch')?.value || '').trim().toLowerCase();
-  let rows = [
-    ...invoices.map(r=>({...r, _kind:'invoice'})),
-    ...proformas.map(r=>({...r, _kind:'proforma'})),
-    ...cancelledDocs.map(c=>({...c, _kind:'cancelled', number:c.number, customer:'', grandTotal:0}))
-  ];
-  if(q){
-    rows = rows.filter(r => (r.number||'').toLowerCase().includes(q) || (r.customer||'').toLowerCase().includes(q));
+  let jobs = buildJobRows();
+
+  // "action needed" counters
+  const counts = {approval:0, toInvoice:0, delayed:0, unpaid:0};
+  jobs.forEach(j=>{
+    if(j.kind === 'cancelled') return;
+    const st = jobStage(j);
+    if(st === 'cancelled' || st === 'closed') return;
+    if(st === 'quoted') counts.approval++;
+    if(st === 'printed') counts.toInvoice++;
+    if(st === 'delayed') counts.delayed++;
+    if(j.invoice){
+      const paid = (j.invoice.advance||0) + (j.invoice.internalPaid||0);
+      if(paid < j.invoice.grandTotal) counts.unpaid++;
+    }
+  });
+  const ab = document.getElementById('txActionBar');
+  if(ab){
+    ab.innerHTML = `
+      <span class="act-chip act-approval">${counts.approval} awaiting approval</span>
+      <span class="act-chip act-toinvoice">${counts.toInvoice} ready to invoice</span>
+      <span class="act-chip act-delayed">${counts.delayed} delayed</span>
+      <span class="act-chip act-unpaid">${counts.unpaid} unpaid</span>`;
   }
-  rows.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+
+  if(q){
+    jobs = jobs.filter(j=>{
+      const nums = [j.proforma?.number, j.invoice?.number, j.cancelled?.number].filter(Boolean).join(' ').toLowerCase();
+      const cust = (jobPrimary(j)?.customer || '').toLowerCase();
+      return nums.includes(q) || cust.includes(q);
+    });
+  }
+  jobs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
 
   const body = document.getElementById('txBody');
-  if(rows.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="9">No transactions ${q?'match your search':'yet'}.</td></tr>`;
+  if(jobs.length === 0){
+    body.innerHTML = `<tr class="empty-row"><td colspan="8">No jobs ${q?'match your search':'yet'}.</td></tr>`;
     return;
   }
-  body.innerHTML = rows.map(r=>{
-    let statusHtml, actionsHtml;
-    if(r._kind === 'cancelled'){
-      statusHtml = `<span class="status-pill status-cancelled">Cancelled</span>`;
-      actionsHtml = '<span class="muted-cell">—</span>';
-    } else if(r._kind === 'proforma'){
-      statusHtml = r.convertedToInvoice
-        ? `<span class="status-pill status-converted">→ ${escapeHtml(r.convertedToInvoice)}</span>`
-        : `<span class="status-pill status-estimate">Estimate</span>`;
-      actionsHtml = `<div class="row-actions">
-          <button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${r.id}','proforma')">View</button>
-          ${!r.convertedToInvoice ? `<button class="btn btn-ghost btn-sm" onclick="convertProformaToInvoice('${r.id}');switchMode('bill');">→ Invoice</button>` : ''}
-        </div>`;
-    } else {
-      const paid = (r.advance||0) + (r.internalPaid||0);
-      const balance = Math.max(0, r.grandTotal - paid);
-      statusHtml = balance <= 0 ? `<span class="status-pill status-paid">Paid</span>` : `<span class="status-pill status-balance">Balance ${inr(balance)}</span>`;
-      actionsHtml = `<div class="row-actions">
-          <button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${r.id}','invoice')">View</button>
-          <button class="btn btn-ghost btn-sm" onclick="openPaymentModal('${r.id}')">💳 Payment</button>
-        </div>`;
+  body.innerHTML = jobs.map(job=>{
+    if(job.kind === 'cancelled'){
+      const c = job.cancelled;
+      return `<tr>
+        <td class="al">${fmtDateDMY(c.date)}</td>
+        <td class="al"><span class="type-pill">${escapeHtml(c.number)}</span></td>
+        <td class="al">—</td>
+        <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(c.reason||'')}" placeholder="Reason…" onchange="updateTxNote('${c.id}','cancelled', this.value)"></td>
+        <td class="al"><span class="status-pill status-cancelled">Cancelled</span></td>
+        <td>—</td>
+        <td class="al">—</td>
+        <td class="al">—</td>
+      </tr>`;
     }
-    const noteVal = r._kind === 'cancelled' ? (r.reason||'') : (r.internalNote||'');
-    const psMap = {none:['ps-none','—'], production:['ps-production','In Production'], sent:['ps-sent','Sent – Awaiting Feedback'], delayed:['ps-delayed','Delayed'], completed:['ps-completed','Completed'], cancelled:['ps-cancelled','Cancelled']};
-    const psVal = r.prodStatus || 'none';
-    const prodStatusHtml = r._kind === 'cancelled' ? '<span class="muted-cell">—</span>' : `
-      <select class="prod-status-select ${psMap[psVal][0]}" onchange="updateProdStatus('${r.id}','${r._kind}', this.value)">
-        ${Object.keys(psMap).map(k=>`<option value="${k}" ${k===psVal?'selected':''}>${psMap[k][1]}</option>`).join('')}
-      </select>`;
+    const p = jobPrimary(job);
+    const stage = jobStage(job);
+    const targetId = (job.invoice || job.proforma).id;
+    const targetKind = job.invoice ? 'invoice' : 'proforma';
+
+    const docsHtml = `
+      ${job.proforma ? `<div><span class="doc-tag doc-pf">PI</span> <span class="part-no">${escapeHtml(job.proforma.number)}</span></div>` : ''}
+      ${job.invoice ? `<div style="margin-top:3px;"><span class="doc-tag doc-inv">INV</span> <span class="part-no">${escapeHtml(job.invoice.number)}</span></div>` : ''}`;
+
+    let moneyHtml, payHtml;
+    if(job.invoice){
+      const paid = (job.invoice.advance||0) + (job.invoice.internalPaid||0);
+      const balance = Math.max(0, job.invoice.grandTotal - paid);
+      moneyHtml = inr(job.invoice.grandTotal);
+      payHtml = balance <= 0
+        ? `<span class="status-pill status-paid">Paid</span>`
+        : `<span class="status-pill status-balance">Due ${inr(balance)}</span>`;
+    } else {
+      moneyHtml = inr(job.proforma.grandTotal);
+      payHtml = `<span class="status-pill status-estimate">Not invoiced</span>`;
+    }
+
+    const actionsHtml = `<div class="row-actions">
+        ${job.proforma ? `<button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${job.proforma.id}','proforma')">PI</button>` : ''}
+        ${job.invoice ? `<button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${job.invoice.id}','invoice')">INV</button>` : ''}
+        ${(job.proforma && !job.invoice) ? `<button class="btn btn-ghost btn-sm" onclick="convertProformaToInvoice('${job.proforma.id}');switchMode('bill');">→ Invoice</button>` : ''}
+        ${job.invoice ? `<button class="btn btn-ghost btn-sm" onclick="openPaymentModal('${job.invoice.id}')">💳</button>` : ''}
+      </div>`;
+
     return `<tr>
-      <td class="al">${fmtDateDMY(r.date)}</td>
-      <td class="al"><span class="type-pill">${r._kind==='invoice'?'Invoice':r._kind==='proforma'?'Proforma':'Cancelled'}</span></td>
-      <td class="al part-no">${escapeHtml(r.number)}</td>
-      <td class="al">${escapeHtml(r.customer||'—')}</td>
-      <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(noteVal)}" placeholder="Add a note…" onchange="updateTxNote('${r.id}','${r._kind}', this.value)"></td>
-      <td class="al">${prodStatusHtml}</td>
-      <td>${r._kind==='cancelled' ? '—' : inr(r.grandTotal)}</td>
-      <td class="al">${statusHtml}</td>
+      <td class="al">${fmtDateDMY(p.date)}</td>
+      <td class="al">${docsHtml}</td>
+      <td class="al">${escapeHtml(p.customer||'—')}</td>
+      <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(p.internalNote||'')}" placeholder="Add a note…" onchange="updateTxNote('${targetId}','${targetKind}', this.value)"></td>
+      <td class="al">
+        <select class="prod-status-select ${STAGES[stage][0]}" onchange="updateProdStatus('${targetId}','${targetKind}', this.value)">
+          ${Object.keys(STAGES).map(k=>`<option value="${k}" ${k===stage?'selected':''}>${STAGES[k][1]}</option>`).join('')}
+        </select>
+      </td>
+      <td>${moneyHtml}</td>
+      <td class="al">${payHtml}</td>
       <td class="al">${actionsHtml}</td>
     </tr>`;
   }).join('');
@@ -1939,6 +2041,11 @@ function savePayment(){
     const newInternal = (inv.internalPaid||0) + delta;
     if(newInternal < 0){ alert('That would reduce the internally-tracked payment below zero.'); return; }
     inv.internalPaid = newInternal;
+  }
+  // auto-advance the stage when the invoice becomes fully paid
+  const totalPaidNow = (inv.advance||0) + (inv.internalPaid||0);
+  if(totalPaidNow >= inv.grandTotal && inv.prodStatus !== 'cancelled'){
+    inv.prodStatus = 'closed';
   }
   saveInvoicesToStorage();
   if(activeRecord && activeRecord.id === inv.id){
