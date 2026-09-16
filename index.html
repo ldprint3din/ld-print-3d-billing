@@ -949,7 +949,7 @@ async function connectCloudFromModal(){
     document.getElementById('cloudDisconnectBtn').style.display = 'inline-flex';
   }catch(e){
     console.error(e);
-    status.textContent = 'Could not connect — check your internet connection and try again.';
+    status.textContent = `Could not connect — ${e.code || e.message || 'unknown error'}.`;
   }
 }
 function disconnectCloud(){
@@ -1482,9 +1482,19 @@ function newDocumentDraft(){
 }
 function nextDocNumber(type){
   const year = new Date().getFullYear();
-  return type==='proforma'
-    ? `PI-${year}-${String(settings.proformaSeq).padStart(4,'0')}`
-    : `LD-${year}-${String(settings.invoiceSeq).padStart(4,'0')}`;
+  const prefix = type==='proforma' ? 'PI' : 'LD';
+  const seqKey = type==='proforma' ? 'proformaSeq' : 'invoiceSeq';
+  const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+  // Self-healing: never propose a number that already exists in the actual saved data
+  // (invoices/proformas/cancelled log), even if the settings counter has drifted —
+  // e.g. after a Cloud Sync merge brought in numbers the local counter didn't know about.
+  let maxSeq = 0;
+  const docs = type==='proforma' ? proformas : invoices;
+  docs.forEach(r=>{ const m = pattern.exec(r.number||''); if(m) maxSeq = Math.max(maxSeq, parseInt(m[1],10)); });
+  cancelledDocs.filter(c=>c.docType===type).forEach(c=>{ const m = pattern.exec(c.number||''); if(m) maxSeq = Math.max(maxSeq, parseInt(m[1],10)); });
+  const seqFromSettings = settings[seqKey] || 1;
+  const nextSeq = Math.max(maxSeq + 1, seqFromSettings);
+  return `${prefix}-${year}-${String(nextSeq).padStart(4,'0')}`;
 }
 function docLabel(type){ return type==='proforma' ? 'PROFORMA INVOICE' : 'TAX INVOICE'; }
 
