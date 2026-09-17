@@ -305,7 +305,7 @@ tbody tr:last-child td{border-bottom:none;}
 .inv-totals{margin:16px 26px 0 auto;width:280px;font-family:var(--mono);font-size:12.5px;}
 .inv-totals .row{display:flex;justify-content:space-between;padding:6px 10px;color:var(--paper-muted);}
 .inv-totals .row.grand{color:var(--paper-text);font-weight:700;font-size:15px;border-top:2px solid var(--paper-text);margin-top:4px;padding:10px;}
-.inv-totals .row.grand-total{background:var(--amber);color:#fff;font-weight:700;font-size:14px;border-radius:6px;padding:9px 10px;}
+.inv-totals .row.grand-total{background:transparent;color:var(--paper-text);font-weight:700;font-size:15px;border-top:2px solid var(--paper-text);margin-top:4px;padding:10px;}
 .inv-payment{margin:18px 26px 0;padding-top:16px;border-top:1px dashed #1C1F2433;}
 .ip-title{font-size:10.5px;text-transform:uppercase;letter-spacing:0.8px;color:var(--paper-text);font-weight:700;margin-bottom:8px;}
 .ip-grid{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
@@ -349,12 +349,26 @@ tbody tr:last-child td{border-bottom:none;}
   background-size:4px 4px,4px 4px;background-repeat:no-repeat;
 }
 .prod-status-select.ps-none{background-color:var(--panel-3);color:var(--text-dim);}
+.prod-status-select.ps-order{background-color:#5A6180;color:#fff;}
+.prod-status-select.ps-proforma{background-color:#4997F4;color:#fff;}
+.prod-status-select.ps-confirmed{background-color:#826DC3;color:#fff;}
 .prod-status-select.ps-production{background-color:#F2894B;color:#3A1B00;}
-.prod-status-select.ps-sent{background-color:#826DC3;color:#fff;}
-.prod-status-select.ps-delayed{background-color:#F2C230;color:#3A2E00;}
-.prod-status-select.ps-completed{background-color:#4CAF6D;color:#052711;}
+.prod-status-select.ps-ready{background-color:#F2C230;color:#3A2E00;}
+.prod-status-select.ps-delivered{background-color:#7FD4A0;color:#04240F;}
+.prod-status-select.ps-invoice{background-color:#2FA6A0;color:#00201F;}
+.prod-status-select.ps-payment{background-color:#C98A2B;color:#fff;}
+.prod-status-select.ps-completed{background-color:#2E7D4A;color:#fff;}
 .prod-status-select.ps-cancelled{background-color:#E15B5B;color:#fff;}
 .prod-status-select option{background:var(--panel-2);color:var(--text);}
+.action-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.act-chip{font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--border);}
+.act-approval{background:#4997F41a;color:#8FC0FF;border-color:#4997F444;}
+.act-toinvoice{background:#7FD4A01a;color:#7FD4A0;border-color:#7FD4A044;}
+.act-delayed{background:#F2C2301a;color:#F2C230;border-color:#F2C23044;}
+.act-unpaid{background:#E15B5B1a;color:#E88;border-color:#E15B5B44;}
+.doc-tag{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;}
+.doc-pf{background:#826DC333;color:#B9A9EE;}
+.doc-inv{background:#4997F433;color:#8FC0FF;}
 .tx-note-input{width:100%;min-width:140px;background:transparent;border:1px solid transparent;color:var(--text);font-family:var(--body);font-size:12px;padding:5px 7px;border-radius:6px;}
 .tx-note-input:hover{border-color:var(--border);}
 .tx-note-input:focus{outline:none;border-color:var(--amber);background:var(--panel-2);}
@@ -668,8 +682,9 @@ tbody tr:last-child td{border-bottom:none;}
     </div>
 
     <div class="panel-head" style="margin-top:22px;">
-      <h2 style="font-size:14px;">All invoices &amp; proformas</h2>
+      <h2 style="font-size:14px;">Job tracker</h2>
     </div>
+    <div id="txActionBar" class="action-bar"></div>
     <div class="search-row">
       <input type="text" id="txSearch" placeholder="Search by number or customer…" oninput="renderTransactions()">
     </div>
@@ -679,13 +694,12 @@ tbody tr:last-child td{border-bottom:none;}
           <thead>
             <tr>
               <th class="al">Date</th>
-              <th class="al">Type</th>
-              <th class="al">Number</th>
+              <th class="al">Documents</th>
               <th class="al">Customer</th>
-              <th class="al">Note</th>
-              <th class="al">Production</th>
-              <th>Total</th>
-              <th class="al">Status</th>
+              <th class="al">Order / Note</th>
+              <th class="al">Stage</th>
+              <th>Order Value</th>
+              <th class="al">Payment</th>
               <th class="al">Actions</th>
             </tr>
           </thead>
@@ -935,7 +949,7 @@ async function connectCloudFromModal(){
     document.getElementById('cloudDisconnectBtn').style.display = 'inline-flex';
   }catch(e){
     console.error(e);
-    status.textContent = 'Could not connect — check your internet connection and try again.';
+    status.textContent = `Could not connect — ${e.code || e.message || 'unknown error'}.`;
   }
 }
 function disconnectCloud(){
@@ -1468,9 +1482,19 @@ function newDocumentDraft(){
 }
 function nextDocNumber(type){
   const year = new Date().getFullYear();
-  return type==='proforma'
-    ? `PI-${year}-${String(settings.proformaSeq).padStart(4,'0')}`
-    : `LD-${year}-${String(settings.invoiceSeq).padStart(4,'0')}`;
+  const prefix = type==='proforma' ? 'PI' : 'LD';
+  const seqKey = type==='proforma' ? 'proformaSeq' : 'invoiceSeq';
+  const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+  // Self-healing: never propose a number that already exists in the actual saved data
+  // (invoices/proformas/cancelled log), even if the settings counter has drifted —
+  // e.g. after a Cloud Sync merge brought in numbers the local counter didn't know about.
+  let maxSeq = 0;
+  const docs = type==='proforma' ? proformas : invoices;
+  docs.forEach(r=>{ const m = pattern.exec(r.number||''); if(m) maxSeq = Math.max(maxSeq, parseInt(m[1],10)); });
+  cancelledDocs.filter(c=>c.docType===type).forEach(c=>{ const m = pattern.exec(c.number||''); if(m) maxSeq = Math.max(maxSeq, parseInt(m[1],10)); });
+  const seqFromSettings = settings[seqKey] || 1;
+  const nextSeq = Math.max(maxSeq + 1, seqFromSettings);
+  return `${prefix}-${year}-${String(nextSeq).padStart(4,'0')}`;
 }
 function docLabel(type){ return type==='proforma' ? 'PROFORMA INVOICE' : 'TAX INVOICE'; }
 
@@ -1497,10 +1521,15 @@ const ICONS = {
   info:'<svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="8.2" r="1" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 11v6"/></svg>'
 };
 
-function buildUpiQrUrl(record){
+function buildUpiString(record){
   if(!settings.upiId) return '';
   const payee = encodeURIComponent(settings.payeeName || settings.bizName);
-  const upiStr = `upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${payee}&am=${record.grandTotal}&cu=INR&tn=${encodeURIComponent(record.number)}`;
+  const amount = (record.advance>0 ? record.balanceDue : record.grandTotal) || record.grandTotal;
+  return `upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${payee}&am=${amount}&cu=INR&tn=${encodeURIComponent(record.number)}`;
+}
+function buildUpiQrUrl(record){
+  if(!settings.upiId) return '';
+  const upiStr = buildUpiString(record);
   return `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(upiStr)}`;
 }
 
@@ -1696,7 +1725,11 @@ function buildMessageText(record){
   if(!record) return '';
   const isPI = record.docType === 'proforma';
   const name = record.customer || 'Customer';
-  return `Hi ${name},\n\nPlease find the ${isPI ? 'proforma quotation' : 'invoice'} ${record.number} for your order.\n${isPI ? 'Estimated' : 'Total'} amount: ${inr(record.grandTotal)}\nEstimated production: ${record.estDays} day${record.estDays===1?'':'s'}\n${isPI ? '\nThis is an approximate quote — please confirm to proceed and we will issue the tax invoice.' : ''}\n\nThank you,\n${settings.bizName}${settings.phone ? '\n'+settings.phone : ''}`;
+  const dueAmount = record.advance>0 ? record.balanceDue : record.grandTotal;
+  const payLine = (!isPI && settings.upiId && dueAmount>0)
+    ? `\nPay now (opens your UPI app): ${buildUpiString(record)}\n(If that link doesn't open, you can also scan the QR code on the invoice.)`
+    : '';
+  return `Hi ${name},\n\nPlease find the ${isPI ? 'proforma quotation' : 'invoice'} ${record.number} for your order.\n${isPI ? 'Estimated' : 'Total'} amount: ${inr(record.grandTotal)}\nEstimated production: ${record.estDays} day${record.estDays===1?'':'s'}\n${isPI ? '\nThis is an approximate quote — please confirm to proceed and we will issue the tax invoice.' : ''}${payLine}\n\nThank you,\n${settings.bizName}${settings.phone ? '\n'+settings.phone : ''}`;
 }
 function updateMessagePreview(record){
   const box = document.getElementById('msgPreview');
@@ -1732,6 +1765,8 @@ function saveDocument(){
       if(src){
         record.sourceProforma = src.number;
         src.convertedToInvoice = record.number;
+        record.internalNote = record.internalNote || src.internalNote || '';
+        record.prodStatus = 'invoice'; // auto-advance stage on conversion
         saveProformasToStorage();
       }
       currentConvertSourceProformaId = null;
@@ -1802,6 +1837,51 @@ function setNextNumber(){
   alert(`Next ${docType==='proforma'?'proforma':'invoice'} number is now ${nextDocNumber(docType)}.`);
 }
 
+const STAGES = {
+  none:      ['ps-none','— Set stage —'],
+  order:     ['ps-order','Order'],
+  proforma:  ['ps-proforma','Proforma'],
+  confirmed: ['ps-confirmed','Confirmed'],
+  production:['ps-production','In Production'],
+  ready:     ['ps-ready','Ready'],
+  delivered: ['ps-delivered','Delivered'],
+  invoice:   ['ps-invoice','Invoice'],
+  payment:   ['ps-payment','Payment'],
+  completed: ['ps-completed','Completed'],
+  cancelled: ['ps-cancelled','Cancelled']
+};
+
+/* Merge each proforma with the invoice it became, so one physical job = one row. */
+function buildJobRows(){
+  const jobs = [];
+  const usedInvoiceIds = new Set();
+  proformas.forEach(pf=>{
+    const inv = pf.convertedToInvoice ? invoices.find(i=>i.number === pf.convertedToInvoice) : null;
+    if(inv) usedInvoiceIds.add(inv.id);
+    jobs.push({ kind:'job', proforma:pf, invoice:inv, createdAt: pf.createdAt||0 });
+  });
+  invoices.forEach(inv=>{
+    if(!usedInvoiceIds.has(inv.id)) jobs.push({ kind:'job', proforma:null, invoice:inv, createdAt: inv.createdAt||0 });
+  });
+  cancelledDocs.forEach(c=>{
+    jobs.push({ kind:'cancelled', cancelled:c, createdAt: c.createdAt||0 });
+  });
+  return jobs;
+}
+function jobStage(job){
+  if(job.kind === 'cancelled') return 'cancelled';
+  // a manually-set stage always wins; automatic inference only fills in when nothing's been chosen
+  const explicit = (job.invoice && job.invoice.prodStatus) || (job.proforma && job.proforma.prodStatus);
+  if(explicit && explicit !== 'none') return explicit;
+  if(job.invoice){
+    const paid = (job.invoice.advance||0) + (job.invoice.internalPaid||0);
+    if(paid >= job.invoice.grandTotal) return 'completed';
+    return 'invoice';
+  }
+  return 'proforma';
+}
+function jobPrimary(job){ return job.invoice || job.proforma; }
+
 function renderTransactions(){
   document.getElementById('txPfCount').textContent = proformas.length;
   document.getElementById('txInvCount').textContent = invoices.length;
@@ -1810,59 +1890,102 @@ function renderTransactions(){
   prefillCancelNumber();
 
   const q = (document.getElementById('txSearch')?.value || '').trim().toLowerCase();
-  let rows = [
-    ...invoices.map(r=>({...r, _kind:'invoice'})),
-    ...proformas.map(r=>({...r, _kind:'proforma'})),
-    ...cancelledDocs.map(c=>({...c, _kind:'cancelled', number:c.number, customer:'', grandTotal:0}))
-  ];
-  if(q){
-    rows = rows.filter(r => (r.number||'').toLowerCase().includes(q) || (r.customer||'').toLowerCase().includes(q));
+  let jobs = buildJobRows();
+
+  // Daily tracking summary
+  const counts = {confirm:0, production:0, ready:0, awaitingInvoice:0, unpaid:0};
+  jobs.forEach(j=>{
+    if(j.kind === 'cancelled') return;
+    const st = jobStage(j);
+    if(st === 'cancelled' || st === 'completed') return;
+    if(st === 'proforma') counts.confirm++;
+    if(st === 'production') counts.production++;
+    if(st === 'ready') counts.ready++;
+    if(st === 'delivered') counts.awaitingInvoice++;
+    if(j.invoice){
+      const paid = (j.invoice.advance||0) + (j.invoice.internalPaid||0);
+      if(paid < j.invoice.grandTotal) counts.unpaid++;
+    }
+  });
+  const ab = document.getElementById('txActionBar');
+  if(ab){
+    ab.innerHTML = `
+      <span class="act-chip act-approval">${counts.confirm} awaiting confirmation</span>
+      <span class="act-chip act-toinvoice">${counts.production} in production</span>
+      <span class="act-chip act-delayed">${counts.ready} ready for delivery</span>
+      <span class="act-chip act-toinvoice">${counts.awaitingInvoice} awaiting invoice</span>
+      <span class="act-chip act-unpaid">${counts.unpaid} unpaid invoices</span>`;
   }
-  rows.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+
+  if(q){
+    jobs = jobs.filter(j=>{
+      const nums = [j.proforma?.number, j.invoice?.number, j.cancelled?.number].filter(Boolean).join(' ').toLowerCase();
+      const cust = (jobPrimary(j)?.customer || '').toLowerCase();
+      return nums.includes(q) || cust.includes(q);
+    });
+  }
+  jobs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
 
   const body = document.getElementById('txBody');
-  if(rows.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="9">No transactions ${q?'match your search':'yet'}.</td></tr>`;
+  if(jobs.length === 0){
+    body.innerHTML = `<tr class="empty-row"><td colspan="8">No jobs ${q?'match your search':'yet'}.</td></tr>`;
     return;
   }
-  body.innerHTML = rows.map(r=>{
-    let statusHtml, actionsHtml;
-    if(r._kind === 'cancelled'){
-      statusHtml = `<span class="status-pill status-cancelled">Cancelled</span>`;
-      actionsHtml = '<span class="muted-cell">—</span>';
-    } else if(r._kind === 'proforma'){
-      statusHtml = r.convertedToInvoice
-        ? `<span class="status-pill status-converted">→ ${escapeHtml(r.convertedToInvoice)}</span>`
-        : `<span class="status-pill status-estimate">Estimate</span>`;
-      actionsHtml = `<div class="row-actions">
-          <button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${r.id}','proforma')">View</button>
-          ${!r.convertedToInvoice ? `<button class="btn btn-ghost btn-sm" onclick="convertProformaToInvoice('${r.id}');switchMode('bill');">→ Invoice</button>` : ''}
-        </div>`;
-    } else {
-      const paid = (r.advance||0) + (r.internalPaid||0);
-      const balance = Math.max(0, r.grandTotal - paid);
-      statusHtml = balance <= 0 ? `<span class="status-pill status-paid">Paid</span>` : `<span class="status-pill status-balance">Balance ${inr(balance)}</span>`;
-      actionsHtml = `<div class="row-actions">
-          <button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${r.id}','invoice')">View</button>
-          <button class="btn btn-ghost btn-sm" onclick="openPaymentModal('${r.id}')">💳 Payment</button>
-        </div>`;
+  body.innerHTML = jobs.map(job=>{
+    if(job.kind === 'cancelled'){
+      const c = job.cancelled;
+      return `<tr>
+        <td class="al">${fmtDateDMY(c.date)}</td>
+        <td class="al"><span class="type-pill">${escapeHtml(c.number)}</span></td>
+        <td class="al">—</td>
+        <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(c.reason||'')}" placeholder="Reason…" onchange="updateTxNote('${c.id}','cancelled', this.value)"></td>
+        <td class="al"><span class="status-pill status-cancelled">Cancelled</span></td>
+        <td>—</td>
+        <td class="al">—</td>
+        <td class="al">—</td>
+      </tr>`;
     }
-    const noteVal = r._kind === 'cancelled' ? (r.reason||'') : (r.internalNote||'');
-    const psMap = {none:['ps-none','—'], production:['ps-production','In Production'], sent:['ps-sent','Sent – Awaiting Feedback'], delayed:['ps-delayed','Delayed'], completed:['ps-completed','Completed'], cancelled:['ps-cancelled','Cancelled']};
-    const psVal = r.prodStatus || 'none';
-    const prodStatusHtml = r._kind === 'cancelled' ? '<span class="muted-cell">—</span>' : `
-      <select class="prod-status-select ${psMap[psVal][0]}" onchange="updateProdStatus('${r.id}','${r._kind}', this.value)">
-        ${Object.keys(psMap).map(k=>`<option value="${k}" ${k===psVal?'selected':''}>${psMap[k][1]}</option>`).join('')}
-      </select>`;
+    const p = jobPrimary(job);
+    const stage = jobStage(job);
+    const targetId = (job.invoice || job.proforma).id;
+    const targetKind = job.invoice ? 'invoice' : 'proforma';
+
+    const docsHtml = `
+      ${job.proforma ? `<div><span class="doc-tag doc-pf">PI</span> <span class="part-no">${escapeHtml(job.proforma.number)}</span></div>` : ''}
+      ${job.invoice ? `<div style="margin-top:3px;"><span class="doc-tag doc-inv">INV</span> <span class="part-no">${escapeHtml(job.invoice.number)}</span></div>` : ''}`;
+
+    let moneyHtml, payHtml;
+    if(job.invoice){
+      const paid = (job.invoice.advance||0) + (job.invoice.internalPaid||0);
+      const balance = Math.max(0, job.invoice.grandTotal - paid);
+      moneyHtml = inr(job.invoice.grandTotal);
+      if(balance <= 0) payHtml = `<span class="status-pill status-paid">Paid</span>`;
+      else if(paid > 0) payHtml = `<span class="status-pill status-balance">Partially Paid ${inr(paid)} / Due ${inr(balance)}</span>`;
+      else payHtml = `<span class="status-pill status-balance">Due ${inr(balance)}</span>`;
+    } else {
+      moneyHtml = inr(job.proforma.grandTotal);
+      payHtml = `<span class="status-pill status-estimate">Not Invoiced</span>`;
+    }
+
+    const actionsHtml = `<div class="row-actions">
+        ${job.proforma ? `<button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${job.proforma.id}','proforma')">PI</button>` : ''}
+        ${job.invoice ? `<button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${job.invoice.id}','invoice')">INV</button>` : ''}
+        ${(job.proforma && !job.invoice) ? `<button class="btn btn-ghost btn-sm" onclick="convertProformaToInvoice('${job.proforma.id}');switchMode('bill');">→ Invoice</button>` : ''}
+        ${job.invoice ? `<button class="btn btn-ghost btn-sm" onclick="openPaymentModal('${job.invoice.id}')">💳</button>` : ''}
+      </div>`;
+
     return `<tr>
-      <td class="al">${fmtDateDMY(r.date)}</td>
-      <td class="al"><span class="type-pill">${r._kind==='invoice'?'Invoice':r._kind==='proforma'?'Proforma':'Cancelled'}</span></td>
-      <td class="al part-no">${escapeHtml(r.number)}</td>
-      <td class="al">${escapeHtml(r.customer||'—')}</td>
-      <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(noteVal)}" placeholder="Add a note…" onchange="updateTxNote('${r.id}','${r._kind}', this.value)"></td>
-      <td class="al">${prodStatusHtml}</td>
-      <td>${r._kind==='cancelled' ? '—' : inr(r.grandTotal)}</td>
-      <td class="al">${statusHtml}</td>
+      <td class="al">${fmtDateDMY(p.date)}</td>
+      <td class="al">${docsHtml}</td>
+      <td class="al">${escapeHtml(p.customer||'—')}</td>
+      <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(p.internalNote||'')}" placeholder="Add a note…" onchange="updateTxNote('${targetId}','${targetKind}', this.value)"></td>
+      <td class="al">
+        <select class="prod-status-select ${STAGES[stage][0]}" onchange="updateProdStatus('${targetId}','${targetKind}', this.value)">
+          ${Object.keys(STAGES).map(k=>`<option value="${k}" ${k===stage?'selected':''}>${STAGES[k][1]}</option>`).join('')}
+        </select>
+      </td>
+      <td>${moneyHtml}</td>
+      <td class="al">${payHtml}</td>
       <td class="al">${actionsHtml}</td>
     </tr>`;
   }).join('');
@@ -1939,6 +2062,11 @@ function savePayment(){
     const newInternal = (inv.internalPaid||0) + delta;
     if(newInternal < 0){ alert('That would reduce the internally-tracked payment below zero.'); return; }
     inv.internalPaid = newInternal;
+  }
+  // auto-advance the stage when the invoice becomes fully paid
+  const totalPaidNow = (inv.advance||0) + (inv.internalPaid||0);
+  if(totalPaidNow >= inv.grandTotal && inv.prodStatus !== 'cancelled'){
+    inv.prodStatus = 'completed';
   }
   saveInvoicesToStorage();
   if(activeRecord && activeRecord.id === inv.id){
