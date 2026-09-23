@@ -124,6 +124,11 @@ body{
 }
 .table-scroll{overflow-x:auto;}
 table{border-collapse:collapse;width:100%;table-layout:fixed;}
+/* Transactions table: size columns to their actual content, not an even split —
+   you said horizontal scroll is fine, so it's allowed to grow past the screen width. */
+.tx-table{table-layout:auto;width:auto;min-width:100%;}
+.tx-table th,.tx-table td{white-space:nowrap;}
+.tx-table td.al input{white-space:normal;}
 thead th{
   position:sticky;top:0;background:var(--panel-2);
   font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.4px;
@@ -297,6 +302,7 @@ tbody tr:last-child td{border-bottom:none;}
 .inv-item-row:nth-child(even){background:#F7F8FB;}
 .inv-item-row:last-child{border-bottom:none;}
 .item-desc{font-size:10px;color:var(--paper-muted);margin-top:1px;}
+.item-dim{font-size:9.5px;color:var(--paper-muted);margin-top:1px;font-family:var(--mono);}
 .col-c{text-align:center;}
 .col-r{text-align:right;font-family:var(--mono);}
 .swatch{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle;}
@@ -572,7 +578,7 @@ tbody tr:last-child td{border-bottom:none;}
           <h4>Pricing &amp; terms</h4>
           <div class="form-grid">
             <div class="field"><label>Shipping (₹)</label><input id="invShipping" type="number" min="0" step="1" value="0" oninput="renderInvoicePreview()"></div>
-            <div class="field"><label>Discount (₹)</label><input id="invDiscount" type="number" min="0" step="1" value="0" oninput="renderInvoicePreview()"></div>
+            <div class="field"><label>Discount (₹ or %)</label><input id="invDiscount" type="text" placeholder="e.g. 500 or 5%" value="0" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>Advance paid (₹)</label><input id="invAdvance" type="number" min="0" step="1" value="0" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>GST %</label><input id="invGst" type="number" min="0" step="0.1" oninput="renderInvoicePreview()"></div>
             <div class="field span2">
@@ -600,9 +606,12 @@ tbody tr:last-child td{border-bottom:none;}
             <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="downloadDocumentPDF()">⬇ Download PDF</button>
             <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="shareDocumentFile()">📤 Share (attach file)</button>
             <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="emailDocument()">✉ Open email draft</button>
-            <label style="display:block;margin:6px 0 6px;">Message text (copy for WhatsApp / email)</label>
-            <textarea id="msgPreview" readonly rows="4" style="width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 11px;font-family:var(--body);font-size:12.5px;resize:vertical;"></textarea>
-            <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="copyMessageText()">📋 Copy message text</button>
+            <label style="display:block;margin:6px 0 6px;">Message text (copy for WhatsApp / email) — editable</label>
+            <textarea id="msgPreview" rows="5" oninput="onMsgPreviewInput()" style="width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 11px;font-family:var(--body);font-size:12.5px;resize:vertical;"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;" onclick="copyMessageText()">📋 Copy message text</button>
+              <button class="btn btn-ghost btn-sm" onclick="resetMsgPreview()" title="Regenerate the auto text">↺ Reset</button>
+            </div>
             <div class="hint" id="shareStatus"></div>
           </div>
         </div>
@@ -690,7 +699,7 @@ tbody tr:last-child td{border-bottom:none;}
     </div>
     <div class="table-card">
       <div class="table-scroll">
-        <table>
+        <table class="tx-table">
           <thead>
             <tr>
               <th class="al">Date</th>
@@ -698,6 +707,7 @@ tbody tr:last-child td{border-bottom:none;}
               <th class="al">Customer</th>
               <th class="al">Order / Note</th>
               <th class="al">Stage</th>
+              <th class="al">Next Action</th>
               <th>Order Value</th>
               <th class="al">Payment</th>
               <th class="al">Actions</th>
@@ -728,6 +738,7 @@ tbody tr:last-child td{border-bottom:none;}
         </datalist>
       </div>
       <div class="field"><label>Colour</label><input type="text" id="fColour" placeholder="e.g. Red"></div>
+      <div class="field span2"><label>Overall size (L×W×H mm)</label><input type="text" id="fDimensions" placeholder="e.g. 150x150x150"></div>
       <div class="field"><label>Weight per piece (g)</label><input type="number" id="fWeight" min="0" step="0.1"></div>
       <div class="field"><label>Filament cost (₹/kg)</label><input type="number" id="fFilCost" min="0" step="1"></div>
       <div class="field"><label>Print time / pc (hrs)</label><input type="number" id="fPrintHr" min="0" step="0.1"></div>
@@ -766,6 +777,7 @@ tbody tr:last-child td{border-bottom:none;}
       <div class="field"><label>Labour rate (₹/hr)</label><input type="number" id="sLabourRate" min="0" step="1"></div>
       <div class="field"><label>Default filament cost (₹/kg)</label><input type="number" id="sDefFilCost" min="0" step="1"></div>
       <div class="field"><label>Default profit %</label><input type="number" id="sDefProfit" min="0" step="1"></div>
+      <div class="field"><label>Operating hours per day</label><input type="number" id="sOperatingHours" min="1" step="0.5" placeholder="e.g. 12"></div>
       <div class="field"><label>Default GST %</label><input type="number" id="sDefGst" min="0" step="0.1"></div>
       <div class="field span2"><label>GSTIN (leave blank until registered)</label><input type="text" id="sGstin" placeholder="Optional"></div>
       <div class="field span2" style="border-top:1px solid var(--border);padding-top:14px;margin-top:2px;"><label style="font-size:11.5px;color:var(--amber);">Payment details (shown on invoices)</label></div>
@@ -774,6 +786,7 @@ tbody tr:last-child td{border-bottom:none;}
       <div class="field"><label>Account number</label><input type="text" id="sBankAccount"></div>
       <div class="field"><label>IFSC code</label><input type="text" id="sBankIfsc"></div>
       <div class="field span2"><label>UPI ID (generates a scannable payment QR)</label><input type="text" id="sUpiId" placeholder="yourname@upi"></div>
+      <div class="field span2"><label>Review link (added to invoice messages only)</label><input type="text" id="sReviewLink" placeholder="https://g.page/r/.../review"></div>
     </div>
     <div class="modal-footer">
       <div style="flex:1"></div>
@@ -812,6 +825,18 @@ tbody tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<!-- ===================== FULL JOB FORM (read-only summary) ===================== -->
+<div class="modal-backdrop no-print" id="fullJobModalBackdrop">
+  <div class="modal" style="max-width:720px;">
+    <h3>Job Summary</h3>
+    <p class="modal-sub" id="fullJobSub"></p>
+    <div id="fullJobBody" style="font-size:13px;line-height:1.7;color:var(--text);max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeFullJobForm()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== CLOUD SYNC MODAL ===================== -->
 <div class="modal-backdrop no-print" id="cloudModalBackdrop">
   <div class="modal">
@@ -845,7 +870,7 @@ let settings = {
   payeeName:'', bankName:'', bankAccount:'', bankIfsc:'', upiId:'',
   electricityRate:8, printerWattage:150, labourRate:150,
   defaultFilamentCost:1200, defaultProfit:40, defaultGst:0,
-  printerCount:1, invoiceSeq:1, proformaSeq:1
+  printerCount:1, invoiceSeq:1, proformaSeq:1, operatingHoursPerDay:12
 };
 let editingPartId = null;
 let selectedPartIds = new Set();
@@ -1155,6 +1180,17 @@ function inr2(n){
   return n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function parseDiscountAmount(raw, subtotal){
+  const s = (raw||'').toString().trim();
+  if(!s) return 0;
+  if(s.endsWith('%')){
+    const pct = parseFloat(s.slice(0,-1));
+    if(isNaN(pct) || pct<0) return 0;
+    return Math.min(subtotal, subtotal * pct / 100);
+  }
+  const flat = parseFloat(s);
+  return (isNaN(flat) || flat<0) ? 0 : Math.min(subtotal, flat);
+}
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function fmtDateDMY(iso){
   if(!iso) return '';
@@ -1262,7 +1298,8 @@ function renderSummary(){
   document.getElementById('sumQty').textContent = totalQty.toLocaleString('en-IN');
   document.getElementById('sumHours').innerHTML = totalHours.toFixed(1) + '<small>hrs</small>';
   const printerCount = Math.max(1, num(settings.printerCount) || 1);
-  const days = totalHours > 0 ? Math.ceil(totalHours / printerCount / 24) : 0;
+  const hoursPerDay = Math.max(1, num(settings.operatingHoursPerDay) || 12);
+  const days = totalHours > 0 ? Math.ceil(totalHours / printerCount / hoursPerDay) : 0;
   document.getElementById('sumDays').innerHTML = days + '<small>days</small>';
 }
 
@@ -1288,6 +1325,7 @@ function openPartModal(id){
     document.getElementById('fDesc').value = part.description;
     document.getElementById('fMaterial').value = part.material || '';
     document.getElementById('fColour').value = part.colour || '';
+    document.getElementById('fDimensions').value = part.dimensions || '';
     document.getElementById('fWeight').value = part.weight;
     document.getElementById('fFilCost').value = part.filamentCostPerKg;
     document.getElementById('fPrintHr').value = part.printTimeHr;
@@ -1302,6 +1340,7 @@ function openPartModal(id){
     document.getElementById('fDesc').value = '3D Printed Part';
     document.getElementById('fMaterial').value = '';
     document.getElementById('fColour').value = '';
+    document.getElementById('fDimensions').value = '';
     document.getElementById('fWeight').value = '';
     document.getElementById('fFilCost').value = settings.defaultFilamentCost;
     document.getElementById('fPrintHr').value = '';
@@ -1330,6 +1369,7 @@ function savePart(){
     description: document.getElementById('fDesc').value.trim() || '3D Printed Part',
     material: document.getElementById('fMaterial').value.trim(),
     colour: document.getElementById('fColour').value.trim(),
+    dimensions: document.getElementById('fDimensions').value.trim(),
     weight: num(document.getElementById('fWeight').value),
     filamentCostPerKg: num(document.getElementById('fFilCost').value),
     printTimeHr: num(document.getElementById('fPrintHr').value),
@@ -1378,11 +1418,13 @@ function openSettings(){
   document.getElementById('sBankAccount').value = settings.bankAccount || '';
   document.getElementById('sBankIfsc').value = settings.bankIfsc || '';
   document.getElementById('sUpiId').value = settings.upiId || '';
+  document.getElementById('sReviewLink').value = settings.reviewLink || '';
   document.getElementById('sElecRate').value = settings.electricityRate;
   document.getElementById('sWattage').value = settings.printerWattage;
   document.getElementById('sLabourRate').value = settings.labourRate;
   document.getElementById('sDefFilCost').value = settings.defaultFilamentCost;
   document.getElementById('sDefProfit').value = settings.defaultProfit;
+  document.getElementById('sOperatingHours').value = settings.operatingHoursPerDay || 12;
   document.getElementById('sDefGst').value = settings.defaultGst;
   document.getElementById('settingsModalBackdrop').classList.add('active');
 }
@@ -1408,11 +1450,13 @@ function saveSettings(){
   settings.bankAccount = document.getElementById('sBankAccount').value.trim();
   settings.bankIfsc = document.getElementById('sBankIfsc').value.trim();
   settings.upiId = document.getElementById('sUpiId').value.trim();
+  settings.reviewLink = document.getElementById('sReviewLink').value.trim();
   settings.electricityRate = num(document.getElementById('sElecRate').value);
   settings.printerWattage = num(document.getElementById('sWattage').value);
   settings.labourRate = num(document.getElementById('sLabourRate').value);
   settings.defaultFilamentCost = num(document.getElementById('sDefFilCost').value);
   settings.defaultProfit = num(document.getElementById('sDefProfit').value);
+  settings.operatingHoursPerDay = Math.max(1, num(document.getElementById('sOperatingHours').value) || 12);
   settings.defaultGst = num(document.getElementById('sDefGst').value);
   saveSettingsToStorage();
   closeSettings();
@@ -1434,7 +1478,7 @@ function renderPickList(){
       <input type="checkbox" ${checked} onchange="togglePart('${part.id}', this.checked)">
       <div class="pr-main">
         <div class="pn">${escapeHtml(part.partNumber||'—')}</div>
-        <div class="pd">${escapeHtml(part.description)}${part.material||part.colour ? ' — '+escapeHtml([part.material,part.colour].filter(Boolean).join(', ')) : ''}</div>
+        <div class="pd">${escapeHtml(part.description)}${part.material||part.colour ? ' — '+escapeHtml([part.material,part.colour].filter(Boolean).join(', ')) : ''}${part.dimensions ? ' · '+escapeHtml(part.dimensions)+'mm' : ''}</div>
         <div class="pr-line">Qty ${num(part.quantity)} &nbsp;×&nbsp; ${inr(c.unitPrice)} &nbsp;=&nbsp; <b>${inr(c.sellingPrice)}</b></div>
       </div>
       <div class="pr-price">${inr(c.sellingPrice)}</div>
@@ -1454,6 +1498,7 @@ function refreshBilling(){
 }
 function switchDocType(type){
   billingDocType = type;
+  msgManuallyEdited = false;
   document.getElementById('docTypeInvoice').classList.toggle('active', type==='invoice');
   document.getElementById('docTypeProforma').classList.toggle('active', type==='proforma');
   document.getElementById('invDetailsHeading').textContent = type==='proforma' ? 'Proforma details' : 'Invoice details';
@@ -1465,6 +1510,7 @@ function switchDocType(type){
 function newDocumentDraft(){
   selectedPartIds = new Set();
   currentConvertSourceProformaId = null;
+  msgManuallyEdited = false;
   document.getElementById('invNumber').value = nextDocNumber(billingDocType);
   document.getElementById('invDate').value = todayISO();
   document.getElementById('invCustomer').value = 'M/S ';
@@ -1543,7 +1589,7 @@ function buildSheetHTML(record){
       : '—';
     return `<div class="inv-item-row">
       <div class="col-c">${i+1}</div>
-      <div><b>${escapeHtml(l.partNumber||'—')}</b><div class="item-desc">${escapeHtml(l.description)}</div></div>
+      <div><b>${escapeHtml(l.partNumber||'—')}</b><div class="item-desc">${escapeHtml(l.description)}</div>${l.dimensions ? `<div class="item-dim">${escapeHtml(l.dimensions)} mm</div>` : ''}</div>
       <div class="col-c">${l.qty}</div>
       <div class="col-c">${escapeHtml(l.material||'—')}</div>
       <div class="col-c">${colourHtml}</div>
@@ -1579,7 +1625,6 @@ function buildSheetHTML(record){
       </div>
       <div class="inv-meta-box">
         <div class="mb-row"><span>DATE</span><b>${fmtDateDMY(record.date)}</b></div>
-        <div class="mb-row"><span>${isPI ? 'PI NO.' : 'INVOICE NO.'}</span><b>${escapeHtml(record.number)}</b></div>
         ${record.paymentTerms ? `<div class="mb-row"><span>PAYMENT TERMS</span><b>${escapeHtml(record.paymentTerms)}</b></div>` : ''}
         ${record.dispatchMode ? `<div class="mb-row"><span>DISPATCH MODE</span><b>${escapeHtml(record.dispatchMode)}</b></div>` : ''}
         ${!isPI && record.sourceProforma ? `<div class="mb-row"><span>REF. PROFORMA</span><b>${escapeHtml(record.sourceProforma)}</b></div>` : ''}
@@ -1660,12 +1705,12 @@ function computeRecordFromSelection(){
     totalTime += c.totalTime;
     return {
       partId: part.id, partNumber: part.partNumber, description: part.description,
-      material: part.material || '', colour: part.colour || '',
+      material: part.material || '', colour: part.colour || '', dimensions: part.dimensions || '',
       qty: num(part.quantity), unitPrice: Math.round(c.unitPrice), amount: Math.round(c.sellingPrice)
     };
   });
   subtotal = Math.round(subtotal);
-  const discount = Math.min(subtotal, num(document.getElementById('invDiscount').value));
+  const discount = parseDiscountAmount(document.getElementById('invDiscount').value, subtotal);
   const shipping = num(document.getElementById('invShipping').value);
   const gstPercent = num(document.getElementById('invGst').value);
   const taxable = subtotal - discount;
@@ -1676,7 +1721,8 @@ function computeRecordFromSelection(){
   if(roundMode === '1'){ grandTotal = Math.round(preRound); roundOff = Math.round((grandTotal - preRound) * 100) / 100; }
   else if(roundMode === '10'){ grandTotal = Math.round(preRound/10)*10; roundOff = Math.round((grandTotal - preRound) * 100) / 100; }
   const printerCount = Math.max(1, num(settings.printerCount) || 1);
-  const estDays = totalTime > 0 ? Math.ceil(totalTime / printerCount / 24) : 0;
+  const hoursPerDay = Math.max(1, num(settings.operatingHoursPerDay) || 12);
+  const estDays = totalTime > 0 ? Math.ceil(totalTime / printerCount / hoursPerDay) : 0;
   const advance = Math.max(0, num(document.getElementById('invAdvance').value));
   const balanceDue = grandTotal - advance;
   return {
@@ -1724,16 +1770,30 @@ function renderInvoicePreview(){
 function buildMessageText(record){
   if(!record) return '';
   const isPI = record.docType === 'proforma';
-  const name = record.customer || 'Customer';
+  const name = record.customer && record.customer.trim() && record.customer.trim() !== 'M/S' ? record.customer : 'customer';
   const dueAmount = record.advance>0 ? record.balanceDue : record.grandTotal;
   const payLine = (!isPI && settings.upiId && dueAmount>0)
-    ? `\nPay now (opens your UPI app): ${buildUpiString(record)}\n(If that link doesn't open, you can also scan the QR code on the invoice.)`
+    ? `\nUPI ID for payment: ${settings.upiId}\n(You can also scan the QR code on the invoice with your UPI app.)`
     : '';
-  return `Hi ${name},\n\nPlease find the ${isPI ? 'proforma quotation' : 'invoice'} ${record.number} for your order.\n${isPI ? 'Estimated' : 'Total'} amount: ${inr(record.grandTotal)}\nEstimated production: ${record.estDays} day${record.estDays===1?'':'s'}\n${isPI ? '\nThis is an approximate quote — please confirm to proceed and we will issue the tax invoice.' : ''}${payLine}\n\nThank you,\n${settings.bizName}${settings.phone ? '\n'+settings.phone : ''}`;
+  const reviewLine = (!isPI && settings.reviewLink)
+    ? `\n\n${settings.bizName} would love your feedback. Post a review to our profile: ${settings.reviewLink}`
+    : '';
+  return `Hi ${name},\n\nPlease find the ${isPI ? 'proforma quotation' : 'invoice'} ${record.number} for your order.\n${isPI ? 'Estimated' : 'Total'} amount: ${inr(record.grandTotal)}\nEstimated production: ${record.estDays} day${record.estDays===1?'':'s'}\n${isPI ? '\nThis is an approximate quote — please confirm to proceed and we will issue the tax invoice.' : ''}${payLine}${reviewLine}\n\nThank you,\n${settings.bizName}${settings.phone ? '\n'+settings.phone : ''}`;
 }
+let msgManuallyEdited = false;
 function updateMessagePreview(record){
   const box = document.getElementById('msgPreview');
-  if(box) box.value = buildMessageText(record);
+  if(box && !msgManuallyEdited) box.value = buildMessageText(record);
+}
+function onMsgPreviewInput(){ msgManuallyEdited = true; }
+function resetMsgPreview(){
+  msgManuallyEdited = false;
+  updateMessagePreview(activeRecord);
+}
+/* the current text actually shown/edited — used by copy/share/email instead of re-generating */
+function currentMessageText(record){
+  const box = document.getElementById('msgPreview');
+  return box ? box.value : buildMessageText(record);
 }
 
 function saveDocument(){
@@ -1783,6 +1843,7 @@ function viewRecord(id, type){
   const record = (type==='proforma' ? proformas : invoices).find(r=>r.id===id);
   if(!record) return;
   activeRecord = record;
+  msgManuallyEdited = false;
   document.getElementById('invoiceSheet').innerHTML = buildSheetHTML(record);
   updateMessagePreview(record);
   document.getElementById('shareStatus').textContent = `Viewing saved ${record.docType==='proforma'?'proforma':'invoice'} ${record.number} — downloads/shares below use this document, not the form on the left.`;
@@ -1881,6 +1942,73 @@ function jobStage(job){
   return 'proforma';
 }
 function jobPrimary(job){ return job.invoice || job.proforma; }
+function nextActionFor(stage, job){
+  const unpaid = job.invoice && ((job.invoice.advance||0)+(job.invoice.internalPaid||0)) < job.invoice.grandTotal;
+  const map = {
+    order: 'Send proforma',
+    proforma: 'Follow up for confirmation',
+    confirmed: 'Start production',
+    production: 'Mark ready when done',
+    ready: 'Arrange delivery',
+    delivered: 'Raise invoice',
+    invoice: unpaid ? 'Send invoice / follow up on payment' : 'Mark payment received',
+    payment: unpaid ? 'Follow up on payment' : 'Mark as completed',
+    completed: '—',
+    cancelled: '—'
+  };
+  return map[stage] || '—';
+}
+
+function openFullJobForm(pfId, invId){
+  const pf = pfId ? proformas.find(p=>p.id===pfId) : null;
+  const inv = invId ? invoices.find(i=>i.id===invId) : null;
+  const primary = inv || pf;
+  if(!primary) return;
+  const stage = jobStage({kind:'job', proforma:pf, invoice:inv});
+
+  const lineRows = (rec) => (rec.lines||[]).map(l=>`<tr>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--border-soft);">${escapeHtml(l.partNumber||'—')}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--border-soft);">${escapeHtml(l.description)}${l.dimensions?` <span style="color:var(--text-dim);">(${escapeHtml(l.dimensions)}mm)</span>`:''}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--border-soft);text-align:right;">${l.qty}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--border-soft);text-align:right;">${inr(l.amount)}</td>
+    </tr>`).join('');
+
+  const section = (title, rec) => !rec ? '' : `
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);">
+      <div style="font-weight:700;color:var(--amber);margin-bottom:6px;">${title} — ${escapeHtml(rec.number)} (${fmtDateDMY(rec.date)})</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr>
+          <th style="text-align:left;padding:5px 8px;color:var(--text-dim);font-size:10.5px;text-transform:uppercase;">Part No.</th>
+          <th style="text-align:left;padding:5px 8px;color:var(--text-dim);font-size:10.5px;text-transform:uppercase;">Description</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--text-dim);font-size:10.5px;text-transform:uppercase;">Qty</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--text-dim);font-size:10.5px;text-transform:uppercase;">Amount</th>
+        </tr></thead>
+        <tbody>${lineRows(rec)}</tbody>
+      </table>
+      <div style="text-align:right;margin-top:6px;font-size:12.5px;color:var(--text-muted);">
+        Subtotal ${inr(rec.subtotal)} · GST ${inr(rec.gstAmount)} ${rec.shipping>0?`· Shipping ${inr(rec.shipping)} `:''}${rec.discount>0?`· Discount −${inr(rec.discount)} `:''}
+        <b style="color:var(--text);">· Total ${inr(rec.grandTotal)}</b>
+      </div>
+    </div>`;
+
+  const paid = inv ? (inv.advance||0)+(inv.internalPaid||0) : 0;
+  const balance = inv ? Math.max(0, inv.grandTotal - paid) : 0;
+
+  document.getElementById('fullJobSub').textContent = `${primary.customer||'Customer'} — ${primary.contact||'no contact on file'}`;
+  document.getElementById('fullJobBody').innerHTML = `
+    <div><b>Stage:</b> ${STAGES[stage] ? STAGES[stage][1] : stage} &nbsp;·&nbsp; <b>Next action:</b> ${nextActionFor(stage, {invoice:inv, proforma:pf})}</div>
+    ${primary.internalNote ? `<div style="margin-top:6px;"><b>Internal note:</b> ${escapeHtml(primary.internalNote)}</div>` : ''}
+    ${primary.paymentTerms ? `<div style="margin-top:4px;"><b>Payment terms:</b> ${escapeHtml(primary.paymentTerms)}</div>` : ''}
+    ${primary.dispatchMode ? `<div style="margin-top:4px;"><b>Dispatch mode:</b> ${escapeHtml(primary.dispatchMode)}</div>` : ''}
+    ${inv ? `<div style="margin-top:8px;"><b>Payment:</b> ${paid>0?`Paid ${inr(paid)} of ${inr(inv.grandTotal)} — `:''}${balance<=0?'Fully paid':`Balance due ${inr(balance)}`}</div>` : `<div style="margin-top:8px;color:var(--text-dim);">No invoice raised yet.</div>`}
+    ${section('Proforma', pf)}
+    ${section('Invoice', inv)}
+  `;
+  document.getElementById('fullJobModalBackdrop').classList.add('active');
+}
+function closeFullJobForm(){
+  document.getElementById('fullJobModalBackdrop').classList.remove('active');
+}
 
 function renderTransactions(){
   document.getElementById('txPfCount').textContent = proformas.length;
@@ -1928,7 +2056,7 @@ function renderTransactions(){
 
   const body = document.getElementById('txBody');
   if(jobs.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="8">No jobs ${q?'match your search':'yet'}.</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="9">No jobs ${q?'match your search':'yet'}.</td></tr>`;
     return;
   }
   body.innerHTML = jobs.map(job=>{
@@ -1940,6 +2068,7 @@ function renderTransactions(){
         <td class="al">—</td>
         <td class="al"><input type="text" class="tx-note-input" value="${escapeHtml(c.reason||'')}" placeholder="Reason…" onchange="updateTxNote('${c.id}','cancelled', this.value)"></td>
         <td class="al"><span class="status-pill status-cancelled">Cancelled</span></td>
+        <td class="al">—</td>
         <td>—</td>
         <td class="al">—</td>
         <td class="al">—</td>
@@ -1972,6 +2101,7 @@ function renderTransactions(){
         ${job.invoice ? `<button class="btn btn-ghost btn-sm" onclick="viewFromTransactions('${job.invoice.id}','invoice')">INV</button>` : ''}
         ${(job.proforma && !job.invoice) ? `<button class="btn btn-ghost btn-sm" onclick="convertProformaToInvoice('${job.proforma.id}');switchMode('bill');">→ Invoice</button>` : ''}
         ${job.invoice ? `<button class="btn btn-ghost btn-sm" onclick="openPaymentModal('${job.invoice.id}')">💳</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="openFullJobForm('${job.proforma?job.proforma.id:''}','${job.invoice?job.invoice.id:''}')" title="Full summary">⛶ Full</button>
       </div>`;
 
     return `<tr>
@@ -1984,6 +2114,7 @@ function renderTransactions(){
           ${Object.keys(STAGES).map(k=>`<option value="${k}" ${k===stage?'selected':''}>${STAGES[k][1]}</option>`).join('')}
         </select>
       </td>
+      <td class="al muted-cell">${nextActionFor(stage, job)}</td>
       <td>${moneyHtml}</td>
       <td class="al">${payHtml}</td>
       <td class="al">${actionsHtml}</td>
@@ -2160,7 +2291,7 @@ async function shareDocumentFile(){
     const blob = await generateDocBlob();
     const file = new File([blob], filename, {type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:`${docLabel(record.docType)} ${record.number}`, text: buildMessageText(record)});
+      await navigator.share({files:[file], title:`${docLabel(record.docType)} ${record.number}`, text: currentMessageText(record)});
       status.textContent = 'Shared.';
     } else {
       const url = URL.createObjectURL(blob);
@@ -2180,7 +2311,7 @@ function emailDocument(){
   if(!activeRecord){ alert('Select at least one part, or view a saved document, first.'); return; }
   const record = activeRecord;
   const subject = `${docLabel(record.docType)} ${record.number}${record.customer ? ' — '+record.customer : ''}`;
-  const body = buildMessageText(record);
+  const body = currentMessageText(record);
   const to = /@/.test(record.contact) ? record.contact : '';
   const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + '\n\n(Remember to attach the downloaded PDF — file name: ' + currentDocNumberSafe() + '.pdf)')}`;
   window.location.href = mailto;
