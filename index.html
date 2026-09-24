@@ -787,6 +787,7 @@ tbody tr:last-child td{border-bottom:none;}
       <div class="field"><label>IFSC code</label><input type="text" id="sBankIfsc"></div>
       <div class="field span2"><label>UPI ID (generates a scannable payment QR)</label><input type="text" id="sUpiId" placeholder="yourname@upi"></div>
       <div class="field span2"><label>Review link (added to invoice messages only)</label><input type="text" id="sReviewLink" placeholder="https://g.page/r/.../review"></div>
+      <div class="field span2"><label>Payment page URL (makes the UPI link tappable in WhatsApp/SMS)</label><input type="text" id="sPayPageUrl" placeholder="https://ldprint3din.github.io/your-repo/pay.html"></div>
     </div>
     <div class="modal-footer">
       <div style="flex:1"></div>
@@ -1419,6 +1420,7 @@ function openSettings(){
   document.getElementById('sBankIfsc').value = settings.bankIfsc || '';
   document.getElementById('sUpiId').value = settings.upiId || '';
   document.getElementById('sReviewLink').value = settings.reviewLink || '';
+  document.getElementById('sPayPageUrl').value = settings.payPageUrl || '';
   document.getElementById('sElecRate').value = settings.electricityRate;
   document.getElementById('sWattage').value = settings.printerWattage;
   document.getElementById('sLabourRate').value = settings.labourRate;
@@ -1451,6 +1453,7 @@ function saveSettings(){
   settings.bankIfsc = document.getElementById('sBankIfsc').value.trim();
   settings.upiId = document.getElementById('sUpiId').value.trim();
   settings.reviewLink = document.getElementById('sReviewLink').value.trim();
+  settings.payPageUrl = document.getElementById('sPayPageUrl').value.trim();
   settings.electricityRate = num(document.getElementById('sElecRate').value);
   settings.printerWattage = num(document.getElementById('sWattage').value);
   settings.labourRate = num(document.getElementById('sLabourRate').value);
@@ -1767,14 +1770,24 @@ function renderInvoicePreview(){
   updateMessagePreview(record);
 }
 
+function buildPayPageLink(record){
+  if(!settings.payPageUrl || !settings.upiId) return '';
+  const payee = encodeURIComponent(settings.payeeName || settings.bizName);
+  const amount = (record.advance>0 ? record.balanceDue : record.grandTotal) || record.grandTotal;
+  return `${settings.payPageUrl}?pa=${encodeURIComponent(settings.upiId)}&pn=${payee}&am=${amount}&tn=${encodeURIComponent(record.number)}`;
+}
 function buildMessageText(record){
   if(!record) return '';
   const isPI = record.docType === 'proforma';
   const name = record.customer && record.customer.trim() && record.customer.trim() !== 'M/S' ? record.customer : 'customer';
   const dueAmount = record.advance>0 ? record.balanceDue : record.grandTotal;
-  const payLine = (!isPI && settings.upiId && dueAmount>0)
-    ? `\nUPI ID for payment: ${settings.upiId}\n(You can also scan the QR code on the invoice with your UPI app.)`
-    : '';
+  let payLine = '';
+  if(!isPI && settings.upiId && dueAmount>0){
+    const payPageLink = buildPayPageLink(record);
+    payLine = payPageLink
+      ? `\nPay now: ${payPageLink}\n(Opens your UPI app to complete the payment.)`
+      : `\nUPI ID for payment: ${settings.upiId}\n(You can also scan the QR code on the invoice with your UPI app.)`;
+  }
   const reviewLine = (!isPI && settings.reviewLink)
     ? `\n\n${settings.bizName} would love your feedback. Post a review to our profile: ${settings.reviewLink}`
     : '';
