@@ -561,6 +561,7 @@ tbody tr:last-child td{border-bottom:none;}
             <div class="field"><label>Date</label><input id="invDate" type="date" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>Customer name</label><input id="invCustomer" type="text" value="M/S " list="customerSuggestions" placeholder="Customer name" oninput="renderInvoicePreview()"></div>
             <div class="field"><label>Contact (phone / email)</label><input id="invContact" type="text" list="contactSuggestions" placeholder="Phone / email" oninput="renderInvoicePreview()"></div>
+            <div class="field"><label>Customer address (optional)</label><input id="invCustomerAddress" type="text" placeholder="Leave blank if not needed" oninput="renderInvoicePreview()"></div>
             <datalist id="customerSuggestions"></datalist>
             <datalist id="contactSuggestions"></datalist>
           </div>
@@ -1518,6 +1519,7 @@ function newDocumentDraft(){
   document.getElementById('invDate').value = todayISO();
   document.getElementById('invCustomer').value = 'M/S ';
   document.getElementById('invContact').value = '';
+  document.getElementById('invCustomerAddress').value = '';
   document.getElementById('invGst').value = settings.defaultGst;
   document.getElementById('invShipping').value = 0;
   document.getElementById('invDiscount').value = 0;
@@ -1641,6 +1643,7 @@ function buildSheetHTML(record){
         <div class="bt-badge">BILL TO:</div>
         <div class="bt-name">${escapeHtml(record.customer||'Customer Name')}</div>
         <div class="bt-contact">${contactIcon}<span>${escapeHtml(record.contact||'Phone / Email')}</span></div>
+        ${record.customerAddress ? `<div class="bt-contact">${ICONS.pin}<span>${escapeHtml(record.customerAddress)}</span></div>` : ''}
       </div>
     </div>
 
@@ -1734,6 +1737,7 @@ function computeRecordFromSelection(){
     date: document.getElementById('invDate').value || todayISO(),
     customer: document.getElementById('invCustomer').value.trim(),
     contact: document.getElementById('invContact').value.trim(),
+    customerAddress: document.getElementById('invCustomerAddress').value.trim(),
     paymentTerms: document.getElementById('invPaymentTerms').value.trim(),
     dispatchMode: document.getElementById('invDispatchMode').value.trim(),
     note: document.getElementById('invNote').value.trim(),
@@ -2007,7 +2011,7 @@ function openFullJobForm(pfId, invId){
   const paid = inv ? (inv.advance||0)+(inv.internalPaid||0) : 0;
   const balance = inv ? Math.max(0, inv.grandTotal - paid) : 0;
 
-  document.getElementById('fullJobSub').textContent = `${primary.customer||'Customer'} — ${primary.contact||'no contact on file'}`;
+  document.getElementById('fullJobSub').textContent = `${primary.customer||'Customer'} — ${primary.contact||'no contact on file'}${primary.customerAddress ? ' — '+primary.customerAddress : ''}`;
   document.getElementById('fullJobBody').innerHTML = `
     <div><b>Stage:</b> ${STAGES[stage] ? STAGES[stage][1] : stage} &nbsp;·&nbsp; <b>Next action:</b> ${nextActionFor(stage, {invoice:inv, proforma:pf})}</div>
     ${primary.internalNote ? `<div style="margin-top:6px;"><b>Internal note:</b> ${escapeHtml(primary.internalNote)}</div>` : ''}
@@ -2235,6 +2239,7 @@ function convertProformaToInvoice(id){
   selectedPartIds = idsToSelect;
   document.getElementById('invCustomer').value = pf.customer || '';
   document.getElementById('invContact').value = pf.contact || '';
+  document.getElementById('invCustomerAddress').value = pf.customerAddress || '';
   document.getElementById('invGst').value = pf.gstPercent ?? settings.defaultGst;
   document.getElementById('invShipping').value = pf.shipping || 0;
   document.getElementById('invDiscount').value = pf.discount || 0;
