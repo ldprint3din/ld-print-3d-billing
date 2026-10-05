@@ -433,8 +433,24 @@ tbody tr:last-child td{border-bottom:none;}
      load (offline / blocked), cloud sync is simply unavailable and everything else still works. -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="loginScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="width:100%;max-width:380px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:30px 28px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
+      <div class="brand-mark">LD</div>
+      <div><h1 style="font-family:var(--display);font-size:18px;margin:0;">LD PRINT 3D</h1><p style="margin:2px 0 0;font-size:10px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;">Sign in to continue</p></div>
+    </div>
+    <div class="field" style="margin-bottom:12px;"><label>Email</label><input id="loginEmail" type="email" placeholder="you@example.com" autocomplete="username"></div>
+    <div class="field" style="margin-bottom:6px;"><label>Password</label><input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') doSignIn();"></div>
+    <div style="text-align:right;margin-bottom:16px;"><a href="#" onclick="doForgotPassword();return false;" style="font-size:11.5px;color:var(--amber);text-decoration:none;">Forgot password?</a></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doSignIn()">Sign In</button>
+    <p class="hint" id="loginStatus" style="margin-top:12px;min-height:14px;"></p>
+  </div>
+</div>
 
+<div id="appRoot" style="display:none;">
 <div class="topbar">
   <div class="brand">
     <div class="brand-mark">LD</div>
@@ -450,6 +466,7 @@ tbody tr:last-child td{border-bottom:none;}
   </div>
   <div class="topbar-actions no-print">
     <button class="icon-btn" id="cloudBtn" title="Cloud sync (PIN) — works on any device" onclick="openCloudModal()">☁</button>
+    <button class="icon-btn" title="Sign out" onclick="if(confirm('Sign out?')) doSignOut();">⎋</button>
     <button class="icon-btn" id="folderBtn" title="Connect a data folder" onclick="folderBtnClick()">📁</button>
     <button class="icon-btn" title="Settings" onclick="openSettings()">⚙</button>
   </div>
@@ -691,6 +708,21 @@ tbody tr:last-child td{border-bottom:none;}
       </div>
     </div>
 
+    <div class="side-card" style="margin-top:18px;">
+      <h4>Period summary</h4>
+      <p class="hint" style="margin-top:0;margin-bottom:12px;">Pick a date range to see invoices, turnover and gross profit for that period. Based on invoice date.</p>
+      <div class="form-grid">
+        <div class="field"><label>Start date</label><input id="repStart" type="date"></div>
+        <div class="field"><label>End date</label><input id="repEnd" type="date"></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="runPeriodReport()">Show Summary</button>
+        <button class="btn btn-ghost" onclick="setReportThisMonth()">This Month</button>
+        <button class="btn btn-ghost" onclick="setReportThisFY()">This Financial Year</button>
+      </div>
+      <div id="repResults" style="margin-top:16px;"></div>
+    </div>
+
     <div class="panel-head" style="margin-top:22px;">
       <h2 style="font-size:14px;">Job tracker</h2>
     </div>
@@ -857,6 +889,8 @@ tbody tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+</div><!-- /#appRoot -->
+
 <script>
 /* ===================== STATE ===================== */
 let parts = [];
@@ -867,7 +901,7 @@ let settings = {
   bizName:'LD PRINT 3D', tagline:'DESIGN • PRINT • INNOVATE',
   phone:'', email:'', gstin:'', address:'', website:'', whatsapp:'', facebook:'', instagram:'',
   footerQuote:'Turning ideas into reality, layer by layer.',
-  defaultProformaTerms:'Estimated delivery timeline will be confirmed within 48 hours of order placement.',
+  defaultProformaTerms:'Production will begin only after confirmation is received via email. If confirmation is not received, production will not commence. The estimated production days begin counting from the date of email confirmation.',
   defaultInvoiceTerms:'Payment is due within 48 hours of delivery.',
   payeeName:'', bankName:'', bankAccount:'', bankIfsc:'', upiId:'',
   electricityRate:8, printerWattage:150, labourRate:150,
@@ -890,14 +924,74 @@ const firebaseConfig = {
   appId: "1:299783332525:web:9b334ab7539078b5dd5c24"
 };
 let cloudDb = null;
+let cloudAuth = null;
 let cloudPin = null;
 let cloudSaving = false;
 try{
   if(window.firebase){
     firebase.initializeApp(firebaseConfig);
     cloudDb = firebase.firestore();
+    cloudAuth = firebase.auth();
   }
 }catch(e){ console.error('Firebase init failed', e); }
+
+/* ===================== LOGIN ===================== */
+function showApp(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+}
+function showLogin(){
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+function doSignIn(){
+  const status = document.getElementById('loginStatus');
+  if(!cloudAuth){ status.textContent = 'Sign-in needs an internet connection — try again once online.'; return; }
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  if(!email || !pass){ status.textContent = 'Enter both email and password.'; return; }
+  status.textContent = 'Signing in…';
+  cloudAuth.signInWithEmailAndPassword(email, pass)
+    .catch(e=>{ status.textContent = authErrorMessage(e); });
+}
+function doForgotPassword(){
+  const status = document.getElementById('loginStatus');
+  if(!cloudAuth){ status.textContent = 'This needs an internet connection — try again once online.'; return; }
+  const email = document.getElementById('loginEmail').value.trim();
+  if(!email){ status.textContent = 'Type your email above first, then click "Forgot password?" again.'; return; }
+  status.textContent = 'Sending reset email…';
+  cloudAuth.sendPasswordResetEmail(email)
+    .then(()=>{ status.textContent = `Password reset email sent to ${email} — check your inbox.`; })
+    .catch(e=>{ status.textContent = authErrorMessage(e); });
+}
+function doSignOut(){
+  if(cloudAuth) cloudAuth.signOut();
+}
+function authErrorMessage(e){
+  const map = {
+    'auth/invalid-email': 'That email address looks invalid.',
+    'auth/user-not-found': 'No account found with that email.',
+    'auth/wrong-password': 'Incorrect password.',
+    'auth/invalid-credential': 'Incorrect email or password.',
+    'auth/too-many-requests': 'Too many attempts — wait a bit and try again.',
+    'auth/network-request-failed': 'Network error — check your internet connection.'
+  };
+  return map[e.code] || (e.message || 'Something went wrong — try again.');
+}
+if(cloudAuth){
+  cloudAuth.onAuthStateChanged(user=>{
+    if(user){
+      showApp();
+      loadAll();
+    } else {
+      showLogin();
+    }
+  });
+} else {
+  // No internet / Firebase blocked at load — fail open rather than locking the owner out entirely.
+  showApp();
+  loadAll();
+}
 
 function cloudDocRef(pin){ return cloudDb.collection('ld3d_business').doc(pin); }
 function updateCloudStatus(connected){
@@ -1063,8 +1157,15 @@ async function connectFolder(){
   try{
     dirHandle = await window.showDirectoryPicker({mode:'readwrite'});
     await idbSet('dataDir', dirHandle);
-    await loadFromFolder();
-    await writeAllToFolder();
+    // If Cloud Sync is already connected, treat the cloud as the source of truth: write
+    // the current (cloud-loaded) data INTO the folder, rather than reading the folder's
+    // possibly older/empty files and overwriting good data already in memory.
+    if(cloudPin){
+      await writeAllToFolder();
+    } else {
+      await loadFromFolder();
+      await writeAllToFolder();
+    }
     updateFolderStatus(true);
   }catch(e){ /* user cancelled the picker */ }
 }
@@ -1078,7 +1179,11 @@ async function folderBtnClick(){
       if(perm !== 'granted') perm = await handle.requestPermission({mode:'readwrite'});
       if(perm === 'granted'){
         dirHandle = handle;
-        await loadFromFolder();
+        if(cloudPin){
+          await writeAllToFolder(); // cloud is already the source of truth — refresh the folder to match it
+        } else {
+          await loadFromFolder();
+        }
         updateFolderStatus(true);
         return;
       }
@@ -1712,7 +1817,8 @@ function computeRecordFromSelection(){
     return {
       partId: part.id, partNumber: part.partNumber, description: part.description,
       material: part.material || '', colour: part.colour || '', dimensions: part.dimensions || '',
-      qty: num(part.quantity), unitPrice: Math.round(c.unitPrice), amount: Math.round(c.sellingPrice)
+      qty: num(part.quantity), unitPrice: Math.round(c.unitPrice), amount: Math.round(c.sellingPrice),
+      cost: Math.round(c.totalCost) // cost basis at time of billing, used for profit reporting
     };
   });
   subtotal = Math.round(subtotal);
@@ -1913,6 +2019,85 @@ function setNextNumber(){
   document.getElementById('snNumber').value = '';
   renderTransactions();
   alert(`Next ${docType==='proforma'?'proforma':'invoice'} number is now ${nextDocNumber(docType)}.`);
+}
+
+/* For a line saved before cost-tracking existed, estimate its cost using the matching part's
+   CURRENT cost basis (material, weight, settings) — clearly flagged as an estimate, since the
+   part may have been edited since this was actually billed. */
+function estimateLineCost(line){
+  if(typeof line.cost === 'number') return { cost: line.cost, basis: 'actual' };
+  if(line.partId){
+    const part = parts.find(p=>p.id===line.partId);
+    if(part && num(part.quantity) > 0){
+      const c = calcRow(part);
+      const perUnitCost = c.totalCost / num(part.quantity);
+      return { cost: Math.round(perUnitCost * line.qty), basis: 'estimated' };
+    }
+  }
+  return { cost: null, basis: 'unknown' };
+}
+function setReportRange(start, end){
+  document.getElementById('repStart').value = start;
+  document.getElementById('repEnd').value = end;
+  runPeriodReport();
+}
+function setReportThisMonth(){
+  const d = new Date();
+  const y = d.getFullYear(), m = d.getMonth();
+  const start = `${y}-${String(m+1).padStart(2,'0')}-01`;
+  const lastDay = new Date(y, m+1, 0).getDate();
+  const end = `${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  setReportRange(start, end);
+}
+function setReportThisFY(){
+  // Indian financial year: 1 April – 31 March
+  const d = new Date();
+  const y = d.getFullYear();
+  const fyStartYear = d.getMonth() >= 3 ? y : y - 1; // month 3 = April (0-indexed)
+  setReportRange(`${fyStartYear}-04-01`, `${fyStartYear+1}-03-31`);
+}
+function runPeriodReport(){
+  const start = document.getElementById('repStart').value;
+  const end = document.getElementById('repEnd').value;
+  const box = document.getElementById('repResults');
+  if(!start || !end){ box.innerHTML = `<p class="hint" style="margin:0;color:var(--red);">Pick both a start and end date.</p>`; return; }
+
+  const inRange = invoices.filter(inv => inv.date >= start && inv.date <= end && inv.prodStatus !== 'cancelled');
+  if(inRange.length === 0){
+    box.innerHTML = `<p class="hint" style="margin:0;">No invoices between ${fmtDateDMY(start)} and ${fmtDateDMY(end)}.</p>`;
+    return;
+  }
+
+  let turnover = 0, totalCost = 0, actualCount = 0, estimatedCount = 0, unknownCount = 0;
+  inRange.forEach(inv=>{
+    turnover += inv.grandTotal;
+    (inv.lines||[]).forEach(l=>{
+      const r = estimateLineCost(l);
+      if(r.cost !== null) totalCost += r.cost;
+      if(r.basis === 'actual') actualCount++;
+      else if(r.basis === 'estimated') estimatedCount++;
+      else unknownCount++;
+    });
+  });
+  const grossProfit = turnover - totalCost;
+  const margin = turnover > 0 ? Math.round((grossProfit/turnover)*100) : 0;
+
+  let noteLines = [];
+  if(estimatedCount>0) noteLines.push(`${estimatedCount} line(s) priced before cost-tracking existed — their cost is ESTIMATED from the matching part's current recipe, not what it actually cost at the time.`);
+  if(unknownCount>0) noteLines.push(`${unknownCount} line(s) have no cost basis at all (the original part no longer exists) — their cost isn't included, so real profit is somewhat lower than shown.`);
+
+  box.innerHTML = `
+    <div class="console" style="margin-top:0;padding:14px 16px;">
+      <div class="readout"><span class="label">Invoices</span><span class="value" style="font-size:18px;">${inRange.length}</span></div>
+      <div class="console-divider"></div>
+      <div class="readout"><span class="label">Turnover</span><span class="value" style="font-size:18px;">${inr(turnover)}</span></div>
+      <div class="console-divider"></div>
+      <div class="readout"><span class="label">Gross Profit</span><span class="value" style="font-size:18px;">${inr(grossProfit)}</span></div>
+      <div class="console-divider"></div>
+      <div class="readout"><span class="label">Margin</span><span class="value" style="font-size:18px;">${margin}%</span></div>
+    </div>
+    ${noteLines.length ? `<p class="hint" style="margin-top:10px;">${noteLines.join(' ')}</p>` : ''}
+  `;
 }
 
 const STAGES = {
@@ -2359,7 +2544,8 @@ function renderAll(){
   renderTransactions();
   populateCustomerSuggestions();
 }
-loadAll();
+/* loadAll() is triggered by onAuthStateChanged once signed in — not called unconditionally here,
+   so no app data loads until a real login succeeds. */
 </script>
 </body>
 </html>
