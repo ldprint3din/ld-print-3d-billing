@@ -251,6 +251,7 @@ tbody tr:last-child td{border-bottom:none;}
 .inv-banner-corner{position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:linear-gradient(135deg,var(--amber),var(--purple));border-radius:50%;opacity:0.18;}
 .inv-brand-row{display:flex;align-items:center;gap:12px;position:relative;z-index:1;}
 .inv-logo-badge{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--amber),var(--purple));color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:15px;flex-shrink:0;}
+.inv-logo-img{width:44px;height:44px;border-radius:10px;object-fit:contain;flex-shrink:0;background:#fff;}
 .inv-brand-text h2{font-family:var(--display);font-size:19px;margin:0;font-weight:800;letter-spacing:0.3px;}
 .inv-brand-text h2 .hl-blue{color:var(--amber);}
 .inv-brand-text h2 .hl-purple{color:var(--purple);}
@@ -802,6 +803,7 @@ tbody tr:last-child td{border-bottom:none;}
       <div class="field"><label>WhatsApp number/link</label><input type="text" id="sWhatsapp" placeholder="Optional"></div>
       <div class="field"><label>Facebook</label><input type="text" id="sFacebook" placeholder="Optional"></div>
       <div class="field"><label>Instagram</label><input type="text" id="sInstagram" placeholder="Optional"></div>
+      <div class="field span2"><label>Logo image URL (PNG, shown on invoice/proforma)</label><input type="text" id="sLogoUrl" placeholder="https://.../logo.png"></div>
       <div class="field span2"><label>Footer quote (shown at bottom of invoice)</label><input type="text" id="sFooterQuote" placeholder="e.g. Turning ideas into reality, layer by layer."></div>
       <div class="field span2"><label>Default proforma note/terms</label><input type="text" id="sDefaultPfTerms" placeholder="e.g. Estimated delivery confirmed within 48 hours"></div>
       <div class="field span2"><label>Default invoice note/terms</label><input type="text" id="sDefaultInvTerms" placeholder="e.g. Payment due within 48 hours of delivery"></div>
@@ -1516,6 +1518,7 @@ function openSettings(){
   document.getElementById('sWhatsapp').value = settings.whatsapp || '';
   document.getElementById('sFacebook').value = settings.facebook || '';
   document.getElementById('sInstagram').value = settings.instagram || '';
+  document.getElementById('sLogoUrl').value = settings.logoUrl || '';
   document.getElementById('sFooterQuote').value = settings.footerQuote || '';
   document.getElementById('sDefaultPfTerms').value = settings.defaultProformaTerms || '';
   document.getElementById('sDefaultInvTerms').value = settings.defaultInvoiceTerms || '';
@@ -1549,6 +1552,7 @@ function saveSettings(){
   settings.whatsapp = document.getElementById('sWhatsapp').value.trim();
   settings.facebook = document.getElementById('sFacebook').value.trim();
   settings.instagram = document.getElementById('sInstagram').value.trim();
+  settings.logoUrl = document.getElementById('sLogoUrl').value.trim();
   settings.footerQuote = document.getElementById('sFooterQuote').value.trim();
   settings.defaultProformaTerms = document.getElementById('sDefaultPfTerms').value.trim();
   settings.defaultInvoiceTerms = document.getElementById('sDefaultInvTerms').value.trim();
@@ -1653,6 +1657,13 @@ function nextDocNumber(type){
   return `${prefix}-${year}-${String(nextSeq).padStart(4,'0')}`;
 }
 function docLabel(type){ return type==='proforma' ? 'PROFORMA INVOICE' : 'TAX INVOICE'; }
+function logoHtml(){
+  if(settings.logoUrl){
+    // onerror falls back to the gradient "LD" badge if the image link ever breaks or is unreachable.
+    return `<img src="${escapeHtml(settings.logoUrl)}" alt="${escapeHtml(settings.bizName)}" class="inv-logo-img" crossorigin="anonymous" onerror="this.outerHTML='<div class=&quot;inv-logo-badge&quot;>LD</div>';">`;
+  }
+  return `<div class="inv-logo-badge">LD</div>`;
+}
 
 const COLOUR_HEX = {
   red:'#E53935', black:'#111318', white:'#F5F5F5', blue:'#2F6FED', navy:'#1B2A5E',
@@ -1714,7 +1725,7 @@ function buildSheetHTML(record){
     <div class="inv-banner">
       <div class="inv-banner-corner"></div>
       <div class="inv-brand-row">
-        <div class="inv-logo-badge">LD</div>
+        ${logoHtml()}
         <div class="inv-brand-text">
           <h2><span class="hl-blue">${escapeHtml(settings.bizName.split(' ').slice(0,-1).join(' ')||settings.bizName)}</span> <span class="hl-purple">${escapeHtml(settings.bizName.split(' ').slice(-1).join(''))}</span></h2>
           <p class="inv-tagline">${escapeHtml(settings.tagline)}</p>
@@ -1862,7 +1873,7 @@ function renderInvoicePreview(){
       <div class="inv-banner">
         <div class="inv-banner-corner"></div>
         <div class="inv-brand-row">
-          <div class="inv-logo-badge">LD</div>
+          ${logoHtml()}
           <div class="inv-brand-text"><h2>${escapeHtml(settings.bizName)}</h2><p class="inv-tagline">${escapeHtml(settings.tagline)}</p></div>
         </div>
       </div>
@@ -2457,13 +2468,15 @@ function waitForImages(el){
 async function generateDocBlob(){
   const sheet = document.getElementById('invoiceSheet');
   await waitForImages(sheet);
-  const canvas = await html2canvas(sheet, {backgroundColor:'#F4F6F7', scale:2, useCORS:true, allowTaint:false});
-  const imgData = canvas.toDataURL('image/png');
+  // scale 1.5 (not 2) + JPEG compression instead of lossless PNG — a flat text/background
+  // document doesn't need PNG-grade fidelity, and this cuts file size by roughly 10-20x.
+  const canvas = await html2canvas(sheet, {backgroundColor:'#F4F6F7', scale:1.5, useCORS:true, allowTaint:false});
+  const imgData = canvas.toDataURL('image/jpeg', 0.85);
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({unit:'pt', format:'a4'});
+  const pdf = new jsPDF({unit:'pt', format:'a4', compress:true});
   const pageWidth = pdf.internal.pageSize.getWidth();
   const imgHeight = (canvas.height * pageWidth) / canvas.width;
-  pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeight);
+  pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, imgHeight);
   return pdf.output('blob');
 }
 function currentDocNumberSafe(){
